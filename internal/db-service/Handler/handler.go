@@ -1,0 +1,224 @@
+package handler
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+
+	serviceoriginal "github.com/Explorerr/pet_project/internal/db-service/service_original"
+	kafkalogger "github.com/Explorerr/pet_project/pkg/Kafka_logger"
+	models "github.com/Explorerr/pet_project/pkg/Models"
+	apperrors "github.com/Explorerr/pet_project/pkg/app_errors"
+	"github.com/gorilla/mux"
+)
+
+type Handler struct {
+	log *kafkalogger.Logger
+	s   serviceoriginal.User_Interface
+}
+
+func NewHandler(log *kafkalogger.Logger, service serviceoriginal.User_Interface) *Handler {
+	return &Handler{log: log, s: service}
+}
+
+func (h *Handler) POST_USER(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var user models.Request_Register
+	ctx := r.Context()
+	if r.Header.Get("Content-Type") != "application/json" {
+		h.log.ERROR("Hnadler(db-service)", "Register-User", "Контент!=JSON", nil)
+		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		h.log.ERROR("Handler(db-service)", "Register-User", fmt.Sprintf("Ошибка декодирования JSON: %v ", err), nil)
+
+		http.Error(w, "неверный формат JSON", http.StatusBadRequest)
+		return
+	}
+	h.log.DEBUG("Handler(db-service)", "Register", fmt.Sprintf("Post_Handler received user: %+v", user), nil)
+
+	erro := h.s.Create_New_user(ctx, user)
+	if erro != nil {
+		h.log.ERROR("Hndler(db-service", "Register", fmt.Sprintf("Пользовваель уже существует:%+v", err), nil)
+
+		http.Error(w, "Такой пользователь уже сущетвует ", http.StatusConflict)
+	}
+	h.log.INFO("Handler(db-service)", "Register", " POST Handler успешно звершился", nil)
+
+	w.WriteHeader(http.StatusCreated)
+
+}
+
+func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var user models.Request_Login
+	ctx := r.Context()
+	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		h.log.ERROR("Handler(db-service)", "Login", "Неверный Content-Type(Нужен json)", nil)
+		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
+		return
+
+	}
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		h.log.ERROR("Handler(db-service)", "Login", fmt.Sprintf("Ошибка декодирования JSON: %V ", err), nil)
+
+		http.Error(w, "неверный формат JSON", http.StatusBadRequest)
+		return
+	}
+	h.log.DEBUG("Handler(db-service)", "Login", fmt.Sprintf("Post_Handler received user: %+v", user), nil)
+	useer, erro := h.s.Login(ctx, user.Email)
+	if erro != nil {
+		if errors.Is(erro, apperrors.ErrUserNotExist) {
+			h.log.ERROR("Hndler(db-service", "Login", fmt.Sprintf("Пользовваель не существует:%+v", err), nil)
+			http.Error(w, "Такой пользователь не сущетвует ", http.StatusNotFound)
+			return
+
+		}
+		h.log.ERROR("Hndler(db-service", "Login", fmt.Sprintf("internal server error:%+v", err), nil)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+
+	}
+	h.log.INFO("Handler(db-service)", "Login", " Login Handler успешно звершился", nil)
+	w.WriteHeader(http.StatusOK)
+	erroo := json.NewEncoder(w).Encode(useer)
+	if erroo != nil {
+		h.log.ERROR("Handler", "Login(json encoding)", fmt.Sprintf("Ошибка при кодитровании json:  %v", erroo), &useer.ID)
+		http.Error(w, "Ошибка кодирования json ", http.StatusBadRequest)
+		return
+
+	}
+	h.log.INFO("Handler(db-service)", "Login", "Пользователь успешно вошел", &useer.ID)
+
+}
+
+func (h *Handler) Create_Task(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	ctx := r.Context()
+	userID := r.URL.Query().Get("user_id")
+	user_newID, _ := strconv.Atoi(userID)
+
+	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		h.log.ERROR("Handler(db-service)", "Create_Task", "Неверный Content-Type(Нужен json)", &user_newID)
+		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+	var task models.Request_Task
+	err := json.NewDecoder(r.Body).Decode(&task)
+	if err != nil {
+		h.log.ERROR("Handler(db-service)", "Create_task", "Ошибка декодирование JSON ", &user_newID)
+		http.Error(w, "Ошибка декодирования JSON тела", http.StatusBadRequest)
+		return
+	}
+
+	Task, err := h.s.Create_Task(ctx, &task, user_newID)
+	if err != nil {
+		h.log.ERROR("Handler(db-service)", "Create_Task", "Ошибка при создании задачи", &user_newID)
+		http.Error(w, "Ошибка при создании задачи", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+
+	erro := json.NewEncoder(w).Encode(Task)
+	if erro != nil {
+		h.log.ERROR("Handler", "Create_Task(json encoding)", fmt.Sprintf("Ошибка при кодитровании json:  %v", erro), &user_newID)
+		http.Error(w, "Ошибка кодирования json ", http.StatusBadRequest)
+		return
+
+	}
+	h.log.INFO("Handler(db-service)", "Create_Task", "Задача успешно создана", &user_newID)
+
+}
+
+func (h *Handler) Delete_Task(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	idStr := vars["user_id"]
+	taskStr := vars["tasl-id"]
+
+	new_userID, _ := strconv.Atoi(idStr)
+	new_taskID, _ := strconv.Atoi(taskStr)
+
+	_, err := h.s.DeleteTask(ctx, new_userID, new_taskID)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrTaskNotFound) {
+			h.log.ERROR("Handler(db-service)", "Delete", "Задача не найдена", &new_userID)
+			http.Error(w, "Задача не найдена", http.StatusNotFound)
+			return
+
+		}
+		h.log.ERROR("Handler(db-service)", "Delete", "Неизвестная ошибка либо упала транзакция", &new_userID)
+		http.Error(w, "Ошибка", http.StatusInternalServerError)
+		return
+
+	}
+	w.WriteHeader(http.StatusOK)
+
+	h.log.INFO("Handler(db-service)", "Delete", "Задача успешно удалена", &new_userID)
+
+}
+
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	idStr := vars["user_id"]
+	taskStr := vars["tasl-id"]
+
+	new_userID, _ := strconv.Atoi(idStr)
+	new_taskID, _ := strconv.Atoi(taskStr)
+
+	_, err := h.s.Update_Task(ctx, new_userID, new_taskID)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrTaskNotFound) {
+			h.log.ERROR("Handler(db-service)", "Update", "Задача не найдена", &new_userID)
+			http.Error(w, "Задача не найдена", http.StatusNotFound)
+			return
+
+		}
+		h.log.ERROR("Handler(db-service)", "Update", "Неизвестная ошибка либо упала транзакция", &new_userID)
+		http.Error(w, "Ошибка", http.StatusInternalServerError)
+		return
+
+	}
+	w.WriteHeader(http.StatusOK)
+
+	h.log.INFO("Handler(db-service)", "Update", "Задача успешно удалена", &new_userID)
+
+}
+
+func (h *Handler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	new_ID, _ := strconv.Atoi(idStr)
+	task, err := h.s.GetAllTasks(ctx, new_ID)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrEmptySlice) {
+			http.Error(w, "У вас неу задач", http.StatusNotFound)
+
+			return
+		}
+		http.Error(w, "Ошибка при получении задач", http.StatusInternalServerError)
+
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	erro := json.NewEncoder(w).Encode(task)
+	if erro != nil {
+		h.log.ERROR("Handler(db-service)", "Json encoding", "Ошибка при кодировании Task в Json", &new_ID)
+		http.Error(w, "Ошибка кодирования json ", http.StatusBadRequest)
+		return
+
+	}
+
+}

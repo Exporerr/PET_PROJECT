@@ -1,0 +1,37 @@
+# Игнорируем ненужные файлы при сборке Docker образа
+
+# Git
+.git
+.gitignore
+
+# Docker файлы
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Логи
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Временные файлы
+*.tmp
+*.temp
+
+# OS файлы
+.DS_Store
+Thumbs.db
+
+# Тесты (если не нужны в образе)
+*_test.go
+
+# Документация
+README.md
+*.md
+
+

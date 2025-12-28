@@ -1,0 +1,25 @@
+# ---------- STAGE 1: builder ----------
+FROM golang:1.24 AS builder
+
+WORKDIR /app
+
+# копируем модульные файлы
+COPY go.mod go.sum ././
+
+
+# копируем весь проект
+COPY . .
+
+# Сборка сервиса
+WORKDIR /app/cmd/db
+RUN CGO_ENABLED=0 GOOS=linux go build -o server
+
+# ---------- STAGE 2: финальный образ ----------
+FROM alpine:3.21.3
+
+WORKDIR /app
+COPY --from=builder /app/cmd/db/server .
+
+EXPOSE 8080
+
+CMD ["./server"]
