@@ -33,5 +33,9 @@ Thumbs.db
 # Документация
 README.md
 *.md
+# ENV Конфигурация
+.env
+.env.*
+
 
 
