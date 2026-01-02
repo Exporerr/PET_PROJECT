@@ -11,14 +11,14 @@ COPY go.mod go.sum ././
 COPY . .
 
 # Сборка сервиса
-WORKDIR /app/cmd/db
+WORKDIR /app/cmd/api
 RUN CGO_ENABLED=0 GOOS=linux go build -o server
 
 # ---------- STAGE 2: финальный образ ----------
 FROM alpine:3.21.3
 
 WORKDIR /app
-COPY --from=builder /app/cmd/db/server .
+COPY --from=builder /app/cmd/api/server .
 
 EXPOSE 8080
 

@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	handler "github.com/Explorerr/pet_project/internal/db-service/Handler"
@@ -27,16 +26,15 @@ func main() {
 		log.Fatalf("не удалось загрузить конфиг: %v", err)
 
 	}
-	os.Mkdir("logs", 0755)
-	f, err := os.OpenFile("logs/app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	log, logfileClose, err := kafkalogger.New_ZapAdapter("DB-SERVICE", "DEBUG")
 	if err != nil {
-		log.Fatalf("не удалось открыть лог-файл: %v", err)
+		panic(err)
 	}
-	defer f.Close()
-	var wg sync.WaitGroup
-	var mu sync.Mutex
+	defer log.Logger.Sync()
+	defer logfileClose()
+
 	ctx := context.Background()
-	log := kafkalogger.New_Logger(f, 100, "DB-SERVICE", &wg, &mu, time.Second*5)
+
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
@@ -58,7 +56,7 @@ func main() {
 
 	}
 	defer pool.Close()
-	db_conn := repository.NewUserPool(pool, *log)
+	db_conn := repository.NewUserPool(pool, &*log)
 	repo := repository.NewRepo(db_conn)
 	s := service.New_Service(repo, log)
 	serv := serviceoriginal.New_User_service(s)

@@ -86,7 +86,7 @@ func Test_Create_Task(t *testing.T) {
 			dsn := "postgres://tester:gidro4302@localhost:5433/testdb"
 			pool, _ := repository.NewPool(ctx, dsn)
 
-			storage := repository.NewUserPool(pool, *kafkalogger.NewNop())
+			storage := repository.NewUserPool(pool, kafkalogger.NewNop())
 
 			service := service.New_Service(storage, kafkalogger.NewNop())
 

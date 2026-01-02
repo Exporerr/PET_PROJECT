@@ -55,3 +55,20 @@ type MyClaims struct {
 	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
+type Request_Info struct {
+	Ip_add string
+	Source string
+	Method string
+	Path   string
+}
+
+type User_Action struct {
+	User_id   int
+	Action    string
+	Resource  int
+	IP        string
+	Method    string
+	Path      string
+	UserAgent string
+	Timestamp time.Time
+}

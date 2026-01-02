@@ -16,10 +16,10 @@ import (
 type Client struct {
 	httpClient *http.Client
 	baseURL    string
-	log        kafkalogger.Logger
+	log        kafkalogger.LoggerInterface
 }
 
-func NewClient(baseURL string, log kafkalogger.Logger) *Client {
+func NewClient(baseURL string, log kafkalogger.LoggerInterface) *Client {
 	return &Client{
 		httpClient: &http.Client{},
 		baseURL:    baseURL,

@@ -9,11 +9,48 @@ import (
 
 	kafkalogger "github.com/Explorerr/pet_project/pkg/Kafka_logger"
 	models "github.com/Explorerr/pet_project/pkg/Models"
+	contextkey "github.com/Explorerr/pet_project/pkg/context_Key"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func JWT_Middleware(next http.Handler, log *kafkalogger.Logger) http.Handler {
+type StatusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (rec *StatusRecorder) WriteHeader(code int) {
+	rec.status = code
+	rec.ResponseWriter.WriteHeader(code)
+}
+
+func CORS_Middleware(next http.Handler, log kafkalogger.LoggerInterface) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization,X-Forwarded-For")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusNoContent) // 204 No Content
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func Info_Middleware(next http.Handler, log kafkalogger.LoggerInterface) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		ip_address := r.Header.Get("X-Forwarded-For")
+		userAgent := r.Header.Get("User-Agent")
+
+		req_info := models.Request_Info{Ip_add: ip_address, Source: userAgent, Method: r.Method, Path: r.URL.Path}
+		ctx := context.WithValue(r.Context(), contextkey.ReqInfo, req_info)
+		next.ServeHTTP(w, r.WithContext(ctx))
+
+	})
+}
+
+func JWT_Middleware(next http.Handler, log kafkalogger.LoggerInterface) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -53,8 +90,8 @@ func JWT_Middleware(next http.Handler, log *kafkalogger.Logger) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
-		ctx = context.WithValue(ctx, "user_role", claims.Role)
+		ctx := context.WithValue(r.Context(), contextkey.UserID, claims.UserID)
+		ctx = context.WithValue(ctx, contextkey.UserRole, claims.Role)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

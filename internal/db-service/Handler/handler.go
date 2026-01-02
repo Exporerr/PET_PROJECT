@@ -16,11 +16,11 @@ import (
 )
 
 type Handler struct {
-	log *kafkalogger.Logger
+	log kafkalogger.LoggerInterface
 	s   serviceoriginal.User_Interface
 }
 
-func NewHandler(log *kafkalogger.Logger, service serviceoriginal.User_Interface) *Handler {
+func NewHandler(log kafkalogger.LoggerInterface, service serviceoriginal.User_Interface) *Handler {
 	return &Handler{log: log, s: service}
 }
 
@@ -40,11 +40,11 @@ func (h *Handler) POST_USER(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "неверный формат JSON", http.StatusBadRequest)
 		return
 	}
-	h.log.DEBUG("Handler(db-service)", "Register", fmt.Sprintf("Post_Handler received user: %+v", user), nil)
+	h.log.DEBUG("Handler(db-service)", "Register", fmt.Sprintf("Post_Handler received user: %s", user.Email), nil)
 
 	erro := h.s.Create_New_user(ctx, user)
 	if erro != nil {
-		h.log.ERROR("Hndler(db-service", "Register", fmt.Sprintf("Пользовваель уже существует:%+v", err), nil)
+		h.log.ERROR("Hndler(db-service", "Register", fmt.Sprintf("Пользовваель уже существует:%+v", erro), nil)
 
 		http.Error(w, "Такой пользователь уже сущетвует ", http.StatusConflict)
 	}
@@ -71,11 +71,11 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "неверный формат JSON", http.StatusBadRequest)
 		return
 	}
-	h.log.DEBUG("Handler(db-service)", "Login", fmt.Sprintf("Post_Handler received user: %+v", user), nil)
+	h.log.DEBUG("Handler(db-service)", "Login", fmt.Sprintf("Post_Handler received user: %s", user.Email), nil)
 	useer, erro := h.s.Login(ctx, user.Email)
 	if erro != nil {
 		if errors.Is(erro, apperrors.ErrUserNotExist) {
-			h.log.ERROR("Hndler(db-service", "Login", fmt.Sprintf("Пользовваель не существует:%+v", err), nil)
+			h.log.ERROR("Hndler(db-service", "Login", fmt.Sprintf("Пользовваель не существует:%+v", erro), nil)
 			http.Error(w, "Такой пользователь не сущетвует ", http.StatusNotFound)
 			return
 
@@ -102,7 +102,13 @@ func (h *Handler) Create_Task(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	ctx := r.Context()
 	userID := r.URL.Query().Get("user_id")
-	user_newID, _ := strconv.Atoi(userID)
+	user_newID, erroo := strconv.Atoi(userID)
+	if erroo != nil {
+		h.log.ERROR("Handler(db-service)", "Create_Task", "Ошибка чтения user_id", &user_newID)
+		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
+		return
+
+	}
 
 	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 		h.log.ERROR("Handler(db-service)", "Create_Task", "Неверный Content-Type(Нужен json)", &user_newID)
@@ -143,8 +149,18 @@ func (h *Handler) Delete_Task(w http.ResponseWriter, r *http.Request) {
 	idStr := vars["user_id"]
 	taskStr := vars["tasl-id"]
 
-	new_userID, _ := strconv.Atoi(idStr)
-	new_taskID, _ := strconv.Atoi(taskStr)
+	new_userID, erro := strconv.Atoi(idStr)
+	if erro != nil {
+		h.log.ERROR("Handler(db-service)", "Create_Task", "Ошибка чтения user_id", nil)
+		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+	new_taskID, erro := strconv.Atoi(taskStr)
+	if erro != nil {
+		h.log.ERROR("Handler(db-service)", "Create_Task", "Ошибка чтения user_id", nil)
+		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
+		return
+	}
 
 	_, err := h.s.DeleteTask(ctx, new_userID, new_taskID)
 	if err != nil {
