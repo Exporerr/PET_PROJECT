@@ -1,0 +1,2 @@
+2025-12-29T19:00:28.461289	INFO	Kafka_logger/logger.go:69	Server started on 8080 port !	{"service": "API-SERVICE", "module": "Server", "event": "Server starting"}
+2025-12-29T19:00:54.665602	INFO	Kafka_logger/logger.go:69	Shutting down server...	{"service": "API-SERVICE", "module": "Server", "event": "Server shuting down"}

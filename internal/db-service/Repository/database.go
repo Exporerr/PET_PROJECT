@@ -15,7 +15,7 @@ import (
 
 type Storage struct {
 	db  *pgxpool.Pool
-	log *kafkalogger.Logger
+	log kafkalogger.LoggerInterface
 }
 
 // НОВЫЙ ПУЛ СОЕДИНЕНИЙ
@@ -28,8 +28,8 @@ func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 }
 
 // НОВОЕ ХРАНИЛИЩЕ
-func NewUserPool(pool *pgxpool.Pool, kafka_logger kafkalogger.Logger) *Storage {
-	return &Storage{db: pool, log: &kafka_logger}
+func NewUserPool(pool *pgxpool.Pool, kafka_logger kafkalogger.LoggerInterface) *Storage {
+	return &Storage{db: pool, log: kafka_logger}
 }
 
 func (s *Storage) Create_Index(ctx context.Context) error { // ЗАПУСТИТЬ ПОСЛЕ СОЗДАНИЯ STORAGE
@@ -111,7 +111,7 @@ func (s *Storage) Create_Task(ctx context.Context, task *models.Request_Task, us
 	if erro != nil {
 		s.log.ERROR("Create_Task(Storaeg)", "Создание задачи", fmt.Sprintf("ошибка при создании задачи: %v", erro), &user_id)
 
-		return nil, err
+		return nil, erro
 	}
 	if err = tx.Commit(ctx); err != nil {
 		s.log.ERROR("storage", "Create_Task", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &user_id)

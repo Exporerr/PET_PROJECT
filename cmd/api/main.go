@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
+
 	"syscall"
 	"time"
 
@@ -18,44 +19,65 @@ import (
 	handlerapi "github.com/Explorerr/pet_project/internal/api-service/Handler_api"
 
 	kafkalogger "github.com/Explorerr/pet_project/pkg/Kafka_logger"
+	"github.com/Explorerr/pet_project/pkg/kafkainit"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Создание контекста
+	ctx, cancel := context.WithCancel(context.Background())
 	err := godotenv.Load("../../internal/api-service/configs/.env")
 	if err != nil {
 		log.Fatalf("не удалось загрузить конфиг: %v", err)
 
 	}
-	os.Mkdir("logs", 0755)
-	f, err := os.OpenFile("logs/app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+
+	log, logfileClose, err := kafkalogger.New_ZapAdapter("API-SERVICE", "DEBUG")
 	if err != nil {
-		log.Fatalf("не удалось открыть лог-файл: %v", err)
+		panic(err)
 	}
-	defer f.Close()
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	ctx := context.Background()
-	log := kafkalogger.New_Logger(f, 100, "API-SERVICE", &wg, &mu, time.Second*5)
+	defer log.Logger.Sync()
+	defer logfileClose()
+	// Создание Брокера конфига
+	err, conn := kafkainit.Set_Config()
+	if err != nil {
+		log.ERROR("Server", "Creating conn and Kafka config", "failed to create conn and config", nil)
+		return
+	}
+	// Создание Консьюмера
+	consumer, err, event_file_close := kafkainit.New_Consumer(log, ctx)
+
+	if err != nil {
+		log.ERROR("Server", "Creating Consummer", "failed to create consumer and log file", nil)
+		return
+	}
+	go consumer.Run(ctx)
+
+	// Создание Продюссера
+	producer := kafkainit.New_Producer(log, 4, 5)
+	go producer.Run(ctx)
+
+	// Достаем адресс db-service из env
 	baseURL := os.Getenv("DB_SERVICE_URL")
 	if baseURL == "" {
 		log.ERROR("Api-service", "url-getting", "url env not set", nil)
 		return
 
 	}
-
-	cli := client.NewClient(baseURL, *log)
+	// Создание Клиента для запросов к db-service(у)
+	cli := client.NewClient(baseURL, *&log)
+	// Создание Сервиса
 	s := serviceapi.NewService_api(*cli, *log)
-
-	h := handlerapi.New_Handler_api(*log, *s)
+	// Создание Хедлера
+	h := handlerapi.New_Handler_api(*log, *s, producer)
 	r := mux.NewRouter()
 	r.HandleFunc("/tasks/register", h.Create_New_user).Methods("POST")
 	r.HandleFunc("/tasks/login", h.Login).Methods("POST")
-	r.Handle("/tasks/create", middleware.JWT_Middleware(http.HandlerFunc(h.Create_Task), log)).Methods("POST")
-	r.Handle("/tasks/up/{task-id}", middleware.JWT_Middleware(http.HandlerFunc(h.Update), log)).Methods("PATCH")
-	r.Handle("/tasks/del/{task-id}", middleware.JWT_Middleware(http.HandlerFunc(h.Delete_Task), log)).Methods("DELETE")
-	r.Handle("/tasks/get", middleware.JWT_Middleware(http.HandlerFunc(h.GetAllTasks), log)).Methods("GET")
+	r.Handle("/tasks/create", middleware.Info_Middleware(middleware.JWT_Middleware(http.HandlerFunc(h.Create_Task), log), log)).Methods("POST")
+	r.Handle("/tasks/up/{task-id}", middleware.Info_Middleware(middleware.JWT_Middleware(http.HandlerFunc(h.Update), log), log)).Methods("PATCH")
+	r.Handle("/tasks/del/{task-id}", middleware.Info_Middleware(middleware.JWT_Middleware(http.HandlerFunc(h.Delete_Task), log), log)).Methods("DELETE")
+	r.Handle("/tasks/get", middleware.Info_Middleware(middleware.JWT_Middleware(http.HandlerFunc(h.GetAllTasks), log), log)).Methods("GET")
 
 	srv := http.Server{
 		Addr:    ":8080",
@@ -74,11 +96,18 @@ func main() {
 	}()
 	<-stop
 	log.INFO("Server", "Server shuting down", "Shutting down server...", nil)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
+	shutdown_ctx, shut_cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*15))
+	defer shut_cancel()
+	if err := srv.Shutdown(shutdown_ctx); err != nil {
+		log.ERROR("Server", "Shutdown", fmt.Sprintf("Shutdown error: %v", err), nil)
 
 	}
+	cancel()           // 1. отменяем appCtx
+	consumer.Close()   // 2. ждём завершения consumer
+	producer.Close()   // 3. закрываем producer
+	event_file_close() // 4. закрываем файл consumer
+	conn.Close()       // 5. Kafka infra
+	logfileClose()     // 6. лог файл
+	log.Logger.Sync()
 
 }

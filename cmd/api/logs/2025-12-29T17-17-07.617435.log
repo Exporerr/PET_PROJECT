@@ -1,0 +1,2 @@
+{"level":"info","ts":"2025-12-29T20:17:07.618577","caller":"Kafka_logger/logger.go:71","msg":"Server started on 8080 port !","service":"API-SERVICE","module":"Server","event":"Server starting"}
+{"level":"info","ts":"2025-12-29T20:17:43.694969","caller":"Kafka_logger/logger.go:71","msg":"Shutting down server...","service":"API-SERVICE","module":"Server","event":"Server shuting down"}

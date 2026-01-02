@@ -13,15 +13,18 @@ import (
 	kafkalogger "github.com/Explorerr/pet_project/pkg/Kafka_logger"
 	models "github.com/Explorerr/pet_project/pkg/Models"
 	apperrors "github.com/Explorerr/pet_project/pkg/app_errors"
+	contextkeys "github.com/Explorerr/pet_project/pkg/context_Key"
+	"github.com/Explorerr/pet_project/pkg/kafkainit"
 	"github.com/gorilla/mux"
 )
 
 type Handler struct {
-	log kafkalogger.Logger
-	s   serviceapi.Service
+	log      kafkalogger.ZapAdapter
+	s        serviceapi.Service
+	producer *kafkainit.Producer_real
 }
 
-func New_Handler_api(log kafkalogger.Logger, s serviceapi.Service) *Handler {
+func New_Handler_api(log kafkalogger.ZapAdapter, s serviceapi.Service, producer *kafkainit.Producer_real) *Handler {
 	return &Handler{log: log, s: s}
 }
 
@@ -41,7 +44,7 @@ func (h *Handler) Create_New_user(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "неверный формат JSON", http.StatusBadRequest)
 		return
 	}
-	h.log.DEBUG("Handler(api-service)", "Register", fmt.Sprintf("Post_Handler received user: %+v", user), nil)
+	h.log.DEBUG("Handler(api-service)", "Register", fmt.Sprintf("Post_Handler received user: %s", user.Email), nil)
 
 	erro := h.s.Register(user, ctx)
 	if erro != nil {
@@ -72,7 +75,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "неверный формат JSON", http.StatusBadRequest)
 		return
 	}
-	h.log.DEBUG("Handler(api-service)", "Login", fmt.Sprintf("Post_Handler received user: %+v", user), nil)
+	h.log.DEBUG("Handler(api-service)", "Login", fmt.Sprintf("Post_Handler received user: %s", user.Email), nil)
 	token, useer, erro := h.s.LoginService(user, ctx)
 	if erro != nil {
 		if errors.Is(erro, apperrors.ErrUserNotExist) {
@@ -101,6 +104,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			"role":  useer.Role,
 		},
 	}
+	go h.producer.WriteMessagee(useer.ID, "Login", 0, r)
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		h.log.ERROR("Handler(api-service)", "Login(json encoding)", fmt.Sprintf("Ошибка при кодитровании json:  %v", err), &useer.ID)
@@ -114,15 +118,15 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Create_Task(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	ctx := r.Context()
-	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		h.log.ERROR("Handler(api-service)", "Create_Task", "Неверный Content-Type(Нужен json)", nil)
-		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
+	userID, ok := r.Context().Value(contextkeys.UserID).(int)
+	if !ok {
+		h.log.ERROR("Handler(api-service)", "Create_Task", "id отсутсвтует в контексте", &userID)
+		http.Error(w, "Неавторизован", http.StatusUnauthorized)
 		return
 	}
-	userID, ok := r.Context().Value("user_id").(int)
-	if !ok {
-		h.log.ERROR("Handler(api-service)", "Create_Task", "id отсутсвтует в контексте", nil)
-		http.Error(w, "Неавторизован", http.StatusUnauthorized)
+	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		h.log.ERROR("Handler(api-service)", "Create_Task", "Неверный Content-Type(Нужен json)", &userID)
+		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
 		return
 	}
 
@@ -152,6 +156,7 @@ func (h *Handler) Create_Task(w http.ResponseWriter, r *http.Request) {
 			"created_at":  Task.CreatedAt,
 		},
 	}
+	go h.producer.WriteMessagee(userID, "Create-Task", Task.ID, r)
 
 	erro := json.NewEncoder(w).Encode(resp)
 	if erro != nil {
@@ -167,7 +172,7 @@ func (h *Handler) Delete_Task(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	userID, ok := r.Context().Value("user_id").(int)
+	userID, ok := r.Context().Value(contextkeys.UserID).(int)
 	if !ok {
 		h.log.ERROR("Handler(api-service)", "Delete_Task", "id отсутсвтует в контексте", nil)
 		http.Error(w, "Неавторизован", http.StatusUnauthorized)
@@ -194,6 +199,7 @@ func (h *Handler) Delete_Task(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Ошибка", http.StatusInternalServerError)
 		return
 	}
+	go h.producer.WriteMessagee(userID, "Create-Task", new_taskID, r)
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(map[string]string{
@@ -211,7 +217,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	userID, ok := r.Context().Value("user_id").(int)
+	userID, ok := r.Context().Value(contextkeys.UserID).(int)
 	if !ok {
 		h.log.ERROR("Handler(api-service)", " Update", "id отсутсвтует в контексте", nil)
 		http.Error(w, "Неавторизован", http.StatusUnauthorized)
@@ -239,6 +245,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
+	go h.producer.WriteMessagee(userID, "Create-Task", new_taskID, r)
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": fmt.Sprintf("Task with id|%d| done(updated) succesfully", new_taskID),
@@ -254,7 +261,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	ctx := r.Context()
-	userID, ok := r.Context().Value("user_id").(int)
+	userID, ok := r.Context().Value(contextkeys.UserID).(int)
 	if !ok {
 		h.log.ERROR("Handler(api-service)", "GetAllTasks", "id отсутсвтует в контексте", nil)
 		http.Error(w, "Неавторизован", http.StatusUnauthorized)
@@ -263,14 +270,15 @@ func (h *Handler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 	task, err := h.s.GetAllTasks(userID, ctx)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrEmptySlice) {
-			h.log.INFO("Handler(api-service)", "GetAllTasks", "Нету задач", nil)
+			h.log.INFO("Handler(api-service)", "GetAllTasks", "Нету задач", &userID)
 			http.Error(w, "У вас неу задач", http.StatusNotFound)
 			return
 		}
-		h.log.ERROR("Handler(api-service)", "GetAllTasks", fmt.Sprintf("непонятная ошибка %v", err), nil)
+		h.log.ERROR("Handler(api-service)", "GetAllTasks", fmt.Sprintf("непонятная ошибка %v", err), &userID)
 		http.Error(w, "Ошибка при получении задач", http.StatusInternalServerError)
 		return
 	}
+	go h.producer.WriteMessagee(userID, "Create-Task", 0, r)
 	w.WriteHeader(http.StatusOK)
 	erro := json.NewEncoder(w).Encode(task)
 	if erro != nil {

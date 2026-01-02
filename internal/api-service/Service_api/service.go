@@ -22,16 +22,19 @@ import (
 
 type Service struct {
 	cli client.Client
-	log kafkalogger.Logger
+	log kafkalogger.ZapAdapter
 }
 
-func NewService_api(cli client.Client, log kafkalogger.Logger) *Service {
+func NewService_api(cli client.Client, log kafkalogger.ZapAdapter) *Service {
 	return &Service{cli: cli, log: log}
 }
 
 func (s *Service) Register(user models.Request_Register, ctx context.Context) error {
 	s.log.DEBUG("Service(api-service)", "Register", fmt.Sprintf("Начало регистрации пользователя: %s", user.Email), nil)
-	if strings.TrimSpace(user.Username) == "" || strings.TrimSpace(user.Email) == "" || strings.TrimSpace(user.Password) == "" {
+	if strings.TrimSpace(user.Username) == "" {
+		user.Username = "Guest"
+	}
+	if strings.TrimSpace(user.Email) == "" || strings.TrimSpace(user.Password) == "" {
 		s.log.ERROR("Service(api-service)", "Register", "Пустые поля в запросе регистрации", nil)
 		return apperrors.ErrInvalidInput
 	}
@@ -57,6 +60,10 @@ func (s *Service) Register(user models.Request_Register, ctx context.Context) er
 
 func (s *Service) LoginService(login models.Request_Login, ctx context.Context) (string, *models.User, error) {
 	s.log.DEBUG("Service(api-service)", "LoginService", fmt.Sprintf("Начало авторизации пользователя: %s", login.Email), nil)
+	if strings.TrimSpace(login.Email) == "" || strings.TrimSpace(login.Password) == "" {
+		s.log.ERROR("Service(api-service)", "Register", "Пустые поля в запросе регистрации", nil)
+		return "", nil, apperrors.ErrInvalidInput
+	}
 	user, err := s.cli.Login(login, ctx)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrUserNotExist) {

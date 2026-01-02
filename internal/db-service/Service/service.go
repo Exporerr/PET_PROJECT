@@ -13,10 +13,10 @@ import (
 
 type Service struct {
 	repo repository.Repository
-	log  *kafkalogger.Logger
+	log  kafkalogger.LoggerInterface
 }
 
-func New_Service(repo repository.Repository, log *kafkalogger.Logger) *Service {
+func New_Service(repo repository.Repository, log kafkalogger.LoggerInterface) *Service {
 	return &Service{repo: repo, log: log}
 }
 
