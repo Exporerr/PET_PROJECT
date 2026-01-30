@@ -101,13 +101,13 @@ func (s *Storage) Create_Task(ctx context.Context, task *models.Request_Task, us
 	query := `
 	INSERT INTO tasks ( user_id, title , description)
 	VALUES ($1, $2, $3)
-	 RETURNING id, title, description, status, created_at
+	 RETURNING id, title, description, status, created_at,user_id
 	
 	`
 	erro := tx.QueryRow(ctx, query,
 		user_id,
 		task.Title,
-		task.Description).Scan(&Resp.ID, &Resp.Title, &Resp.Description, &Resp.Status, &Resp.CreatedAt)
+		task.Description).Scan(&Resp.ID, &Resp.Title, &Resp.Description, &Resp.Status, &Resp.CreatedAt, &Resp.UserID)
 	if erro != nil {
 		s.log.ERROR("Create_Task(Storaeg)", "Создание задачи", fmt.Sprintf("ошибка при создании задачи: %v", erro), &user_id)
 
@@ -156,8 +156,15 @@ func (s *Storage) DeleteTask(ctx context.Context, userID, taskID int) (bool, err
 func (s *Storage) Get_Tasks(user_id int, ctx context.Context) ([]models.Task, error) {
 	var tasks []models.Task
 
-	query := `SELECT id ,title,description, status,created_at FROM tasks WHERE user_id=$1`
+	query := `SELECT id ,title,description, status,created_at FROM tasks WHERE user_id=$1 ORDER BY id ASC LIMIT 10`
 	rows, err := s.db.Query(ctx, query, user_id)
+
+	if err != nil {
+		s.log.ERROR("Storage", "Get_Tasks", fmt.Sprintf("Ошибка запроса: %v", err), &user_id)
+		return nil, err
+	}
+	defer rows.Close()
+
 	for rows.Next() {
 		var t models.Task
 		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Status, &t.CreatedAt); err != nil {
@@ -167,12 +174,11 @@ func (s *Storage) Get_Tasks(user_id int, ctx context.Context) ([]models.Task, er
 		}
 		tasks = append(tasks, t)
 	}
-
-	if err != nil {
-		s.log.ERROR("Storage(db-servic)", "DeleteTask", "Произошла ошибка при удалении задачи", &user_id)
-		return nil, apperrors.ErrWentWrong
-
+	if err := rows.Err(); err != nil {
+		s.log.ERROR("Storage", "Get_Tasks", fmt.Sprintf("Ошибка при чтении rows: %v", err), &user_id)
+		return nil, err
 	}
+
 	s.log.INFO("Storage(db-service)", "Получение задач", fmt.Sprintf("Get_Task успешно отработал с пользоватлем :%d", user_id), &user_id)
 	return tasks, nil
 }

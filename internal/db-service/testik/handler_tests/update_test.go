@@ -39,9 +39,9 @@ func Test_Update(t *testing.T) {
 
 			w := httptest.NewRecorder()
 
-			log := kafkalogger.NewNop()
+			log := kafkalogger.Logger_For_Tests{}
 
-			h := handler.NewHandler(log, &tt.mock_service)
+			h := handler.NewHandler(&log, &tt.mock_service)
 
 			h.Update(w, req)
 

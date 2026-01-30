@@ -11,6 +11,7 @@ import (
 	handler "github.com/Explorerr/pet_project/internal/db-service/Handler"
 	"github.com/Explorerr/pet_project/internal/db-service/testik"
 	kafkalogger "github.com/Explorerr/pet_project/pkg/Kafka_logger"
+	"github.com/gorilla/mux"
 
 	apperrors "github.com/Explorerr/pet_project/pkg/app_errors"
 	"github.com/stretchr/testify/assert"
@@ -28,22 +29,25 @@ func Test_Delete(t *testing.T) {
 	}{
 		{Name: "Хороший тест", Task_id: "25345252", User_id: "25345252", Expecetd_status: 200, expectedBodyPart: "", expectError: false, mock_service: testik.Service_mock{Err: nil}},
 		{Name: "Не найдено задач", Task_id: "3455353", User_id: "45563346", Expecetd_status: 404, expectedBodyPart: "Задача не найдена", expectError: true, mock_service: testik.Service_mock{Err: apperrors.ErrTaskNotFound}},
-		{Name: "Непонятно что либо упала транзакция", Task_id: "25345252", User_id: "25345252", Expecetd_status: 500, expectedBodyPart: "Ошибка", expectError: true, mock_service: testik.Service_mock{Err: errors.New("ошибка")}},
+		{Name: "Непонятно что, либо упала транзакция", Task_id: "25345252", User_id: "25345252", Expecetd_status: 500, expectedBodyPart: "Ошибка", expectError: true, mock_service: testik.Service_mock{Err: errors.New("ошибка")}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodPatch, "/tasks/patch", nil)
-			req.Header.Set("X-User-ID", tt.User_id)
-			req.Header.Set("X-Task-ID", tt.Task_id)
+			headers := map[string]string{
+				"user_id": tt.User_id,
+				"tasl-id": tt.Task_id,
+			}
+			new_req := mux.SetURLVars(req, headers)
 
 			w := httptest.NewRecorder()
 
-			log := kafkalogger.NewNop()
+			log := kafkalogger.Logger_For_Tests{}
 
-			h := handler.NewHandler(log, &tt.mock_service)
+			h := handler.NewHandler(&log, &tt.mock_service)
 
-			h.Delete_Task(w, req)
+			h.Delete_Task(w, new_req)
 
 			resp := w.Result()
 			defer resp.Body.Close()

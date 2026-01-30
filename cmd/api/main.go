@@ -39,12 +39,7 @@ func main() {
 	}
 	defer log.Logger.Sync()
 	defer logfileClose()
-	// Создание Брокера конфига
-	err, conn := kafkainit.Set_Config()
-	if err != nil {
-		log.ERROR("Server", "Creating conn and Kafka config", "failed to create conn and config", nil)
-		return
-	}
+
 	// Создание Консьюмера
 	consumer, err, event_file_close := kafkainit.New_Consumer(log, ctx)
 
@@ -58,7 +53,7 @@ func main() {
 	producer := kafkainit.New_Producer(log, 4, 5)
 	go producer.Run(ctx)
 
-	// Достаем адресс db-service из env
+	// Достаем адресс db-service из env файла
 	baseURL := os.Getenv("DB_SERVICE_URL")
 	if baseURL == "" {
 		log.ERROR("Api-service", "url-getting", "url env not set", nil)
@@ -106,7 +101,6 @@ func main() {
 	consumer.Close()   // 2. ждём завершения consumer
 	producer.Close()   // 3. закрываем producer
 	event_file_close() // 4. закрываем файл consumer
-	conn.Close()       // 5. Kafka infra
 	logfileClose()     // 6. лог файл
 	log.Logger.Sync()
 

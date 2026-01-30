@@ -81,9 +81,9 @@ func Test_Login(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/tasks/login", bytes.NewReader([]byte(tt.Body)))
 			req.Header.Set("Content-Type", tt.ContentType)
 			w := httptest.NewRecorder()
-			log := kafkalogger.NewNop()
+			log := kafkalogger.Logger_For_Tests{}
 
-			h := handler.NewHandler(log, &tt.servic_mock)
+			h := handler.NewHandler(&log, &tt.servic_mock)
 
 			h.Login(w, req)
 

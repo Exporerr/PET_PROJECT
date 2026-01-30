@@ -104,7 +104,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			"role":  useer.Role,
 		},
 	}
-	go h.producer.WriteMessagee(useer.ID, "Login", 0, r)
+	go h.producer.WriteMessagee(useer.ID, "Login", 0, r.Context()) ////////////////////////////////////////
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		h.log.ERROR("Handler(api-service)", "Login(json encoding)", fmt.Sprintf("Ошибка при кодитровании json:  %v", err), &useer.ID)
@@ -156,7 +156,7 @@ func (h *Handler) Create_Task(w http.ResponseWriter, r *http.Request) {
 			"created_at":  Task.CreatedAt,
 		},
 	}
-	go h.producer.WriteMessagee(userID, "Create-Task", Task.ID, r)
+	go h.producer.WriteMessagee(userID, "Create-Task", Task.ID, r.Context()) ////////////////////////////////////
 
 	erro := json.NewEncoder(w).Encode(resp)
 	if erro != nil {
@@ -199,7 +199,7 @@ func (h *Handler) Delete_Task(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Ошибка", http.StatusInternalServerError)
 		return
 	}
-	go h.producer.WriteMessagee(userID, "Create-Task", new_taskID, r)
+	go h.producer.WriteMessagee(userID, "Create-Task", new_taskID, r.Context()) /////////////////////////////
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(map[string]string{
@@ -245,7 +245,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
-	go h.producer.WriteMessagee(userID, "Create-Task", new_taskID, r)
+	go h.producer.WriteMessagee(userID, "Create-Task", new_taskID, r.Context()) ////////////////
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": fmt.Sprintf("Task with id|%d| done(updated) succesfully", new_taskID),
@@ -278,7 +278,7 @@ func (h *Handler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Ошибка при получении задач", http.StatusInternalServerError)
 		return
 	}
-	go h.producer.WriteMessagee(userID, "Create-Task", 0, r)
+	go h.producer.WriteMessagee(userID, "Create-Task", 0, r.Context()) ////////////////////////////
 	w.WriteHeader(http.StatusOK)
 	erro := json.NewEncoder(w).Encode(task)
 	if erro != nil {

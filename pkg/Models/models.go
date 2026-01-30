@@ -47,7 +47,7 @@ type Task struct {
 	UserID      int       `json:"user_id"`
 	Title       string    `json:"title"`                 // заполняем
 	Description string    `json:"description,omitempty"` // заполняем
-	Status      bool      `json:"status"`
+	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 type MyClaims struct {
