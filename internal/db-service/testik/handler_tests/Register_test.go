@@ -64,7 +64,7 @@ func TestRegister(t *testing.T) {
 			req.Header.Set("Content-Type", tt.content_type)
 			w := httptest.NewRecorder()
 
-			h := handler.NewHandler(&kafkalogger.Logger{}, tt.mockService)
+			h := handler.NewHandler(&kafkalogger.Logger_For_Tests{}, tt.mockService)
 
 			h.POST_USER(w, req)
 

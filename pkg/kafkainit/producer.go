@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 
 	"strconv"
 	"sync"
@@ -53,13 +52,14 @@ func New_Producer(log *kafkalogger.ZapAdapter, max_size int, tim time.Duration) 
 		Writer:       writer,
 		Log:          log,
 	}
+	producer.Wg.Add(1)
 
 	return producer
 
 }
 
-func (p *Producer_real) WriteMessagee(userID int, action string, resourceID int, r *http.Request) {
-	rd := r.Context().Value(contextkeys.ReqInfo).(*models.Request_Info)
+func (p *Producer_real) WriteMessagee(userID int, action string, resourceID int, ctx context.Context) {
+	rd := ctx.Value(contextkeys.ReqInfo).(*models.Request_Info)
 	userAction := models.User_Action{
 		User_id:   userID,
 		Action:    action,
@@ -82,6 +82,8 @@ func (p *Producer_real) WriteMessagee(userID int, action string, resourceID int,
 	}
 	select {
 	case p.Message_chan <- *msg:
+	case <-ctx.Done():
+		return
 	default:
 
 		p.Log.ERROR("Kafka Producer", "WriteMessage to channel", "log channel full — dropped message", &userID)
@@ -115,10 +117,13 @@ func (p *Producer_real) Run(ctx context.Context) {
 }
 
 func (p *Producer_real) flush() {
+
 	p.Mu.Lock()
 	defer p.Mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-	err := p.Writer.WriteMessages(context.Background(), p.Buffer...)
+	err := p.Writer.WriteMessages(ctx, p.Buffer...)
 	if err != nil {
 		p.Log.ERROR(
 			"Kafka Producer",

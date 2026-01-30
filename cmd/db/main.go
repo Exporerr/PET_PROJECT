@@ -90,6 +90,7 @@ func main() {
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
+		log.ERROR("Server", "Shutdown", fmt.Sprintf("Shutdown error: %v", err), nil)
 
 	}
 

@@ -42,6 +42,12 @@ func (s *Service_mock) DeleteTask(ctx context.Context, userID, taskID int) (bool
 func (s *Service_mock) Create_Task(ctx context.Context, task *models.Request_Task, user_id int) (*models.Task, error) {
 
 	if strings.TrimSpace(task.Title) == "" || task.Description == "" {
+		return nil, apperrors.ErrInvalidInput
+	}
+	if s.Err != nil {
+		if errors.Is(s.Err, apperrors.ErrWentWrong) {
+			return nil, apperrors.ErrWentWrong
+		}
 		return nil, s.Err
 	}
 

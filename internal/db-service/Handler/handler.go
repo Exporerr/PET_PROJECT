@@ -105,7 +105,7 @@ func (h *Handler) Create_Task(w http.ResponseWriter, r *http.Request) {
 	user_newID, erroo := strconv.Atoi(userID)
 	if erroo != nil {
 		h.log.ERROR("Handler(db-service)", "Create_Task", "Ошибка чтения user_id", &user_newID)
-		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
+		http.Error(w, "Неверный формат user-id ", http.StatusUnsupportedMediaType)
 		return
 
 	}
@@ -145,6 +145,7 @@ func (h *Handler) Create_Task(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Delete_Task(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	ctx := r.Context()
+
 	vars := mux.Vars(r)
 	idStr := vars["user_id"]
 	taskStr := vars["tasl-id"]
@@ -152,13 +153,13 @@ func (h *Handler) Delete_Task(w http.ResponseWriter, r *http.Request) {
 	new_userID, erro := strconv.Atoi(idStr)
 	if erro != nil {
 		h.log.ERROR("Handler(db-service)", "Create_Task", "Ошибка чтения user_id", nil)
-		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
+		http.Error(w, "Ошибка чтения id", http.StatusBadRequest)
 		return
 	}
-	new_taskID, erro := strconv.Atoi(taskStr)
-	if erro != nil {
-		h.log.ERROR("Handler(db-service)", "Create_Task", "Ошибка чтения user_id", nil)
-		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
+	new_taskID, errorr := strconv.Atoi(taskStr)
+	if errorr != nil {
+		h.log.ERROR("Handler(db-service)", "Create_Task", "Ошибка чтения task_id", nil)
+		http.Error(w, "Ошибка чтения id", http.StatusBadRequest)
 		return
 	}
 

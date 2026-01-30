@@ -40,14 +40,14 @@ func Test_GetAllTasks(t *testing.T) {
 						UserID:      101,
 						Title:       "Сделать домашнее задание",
 						Description: "Написать тесты для HTTP-хендлера Login",
-						Status:      false,
+						Status:      " false",
 						CreatedAt:   time.Now(),
 					},
 					{ID: 2,
 						UserID:      102,
 						Title:       "Купить продукты",
 						Description: "Молоко, хлеб, яйца",
-						Status:      false,
+						Status:      "fals",
 						CreatedAt:   time.Now(),
 					},
 				},
@@ -81,9 +81,9 @@ func Test_GetAllTasks(t *testing.T) {
 
 			w := httptest.NewRecorder()
 
-			log := kafkalogger.NewNop()
+			log := kafkalogger.Logger_For_Tests{}
 
-			h := handler.NewHandler(log, &tt.servic_mock)
+			h := handler.NewHandler(&log, &tt.servic_mock)
 
 			h.GetAllTasks(w, req)
 

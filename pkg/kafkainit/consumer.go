@@ -21,6 +21,11 @@ type Consumer struct {
 	File *os.File
 }
 
+const (
+	Broker = "localhost:9092"
+	Topic  = "my-topic"
+)
+
 func New_Consumer(log *kafkalogger.ZapAdapter, ctx context.Context) (*Consumer, error, func() error) {
 	if err := os.MkdirAll("USER-EVENTS", 0755); err != nil {
 		return nil, fmt.Errorf("mkdir log_event folder %v", err), nil
@@ -29,7 +34,7 @@ func New_Consumer(log *kafkalogger.ZapAdapter, ctx context.Context) (*Consumer, 
 	logfilepath := filepath.Join("USER-EVENTS", fmt.Sprintf("%s.log", timestamp))
 	logfile, err := os.OpenFile(logfilepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.ERROR("Consumer ", "File opening", fmt.Sprintf("failed to optn file :%v", err), nil)
+		log.ERROR("Consumer ", "File opening", fmt.Sprintf("failed to open file :%v", err), nil)
 		return nil, err, nil
 	}
 	reader := kafka.NewReader(kafka.ReaderConfig{
@@ -45,6 +50,7 @@ func New_Consumer(log *kafkalogger.ZapAdapter, ctx context.Context) (*Consumer, 
 
 		File: logfile,
 	}
+	cons.Wg.Add(1)
 
 	return &cons, nil, logfile.Close
 
@@ -78,7 +84,9 @@ func (c *Consumer) process(msg kafka.Message) {
 }
 
 func (c *Consumer) Close() {
-	c.Consum.Close()
 	c.Wg.Wait()
+	if err := c.Consum.Close(); err != nil {
+		c.Log.ERROR("Kafka Consumer", "Close", err.Error(), nil)
+	}
 
 }
