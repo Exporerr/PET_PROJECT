@@ -207,7 +207,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 
-	h.log.INFO("Handler(db-service)", "Update", "Задача успешно удалена", &new_userID)
+	h.log.INFO("Handler(db-service)", "Update", "Задача успешно обновлена", &new_userID)
 
 }
 
