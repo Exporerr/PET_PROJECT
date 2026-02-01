@@ -21,7 +21,11 @@ import (
 )
 
 func main() {
-	err := godotenv.Load("../../internal/db-service/configs/.env")
+	env_path:=os.Getenv("DB_ENV")
+	if env_path=="" {
+		env_path="../../internal/db-service/configs/.env"
+	}
+	err := godotenv.Load(env_path)
 	if err != nil {
 		log.Fatalf("не удалось загрузить конфиг: %v", err)
 

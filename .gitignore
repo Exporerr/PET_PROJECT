@@ -1,0 +1,39 @@
+# Логи (логгер и consumer)
+logs/
+USER-EVENTS/
+cmd/db/logs/
+cmd/api/logs/
+cmd/api/USER-EVENTS/
+
+# Переменные окружения (секреты)
+.env
+*.env
+!*.env.example
+internal/api-service/Configs/.env
+internal/db-service/configs/.env
+
+# Go
+vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+__debug_bin
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Временные файлы
+*.log
+*.tmp
+tmp/
+temp/

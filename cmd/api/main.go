@@ -27,7 +27,11 @@ import (
 func main() {
 	// Создание контекста
 	ctx, cancel := context.WithCancel(context.Background())
-	err := godotenv.Load("../../internal/api-service/configs/.env")
+	envPath := os.Getenv("API_ENV")
+	if envPath == "" {
+		envPath = "../../internal/api-service/Configs/.env"
+	}
+	err := godotenv.Load(envPath)
 	if err != nil {
 		log.Fatalf("не удалось загрузить конфиг: %v", err)
 

@@ -27,11 +27,16 @@ func New_ZapAdapter(service string, loglevel string) (*ZapAdapter, func() error,
 	if err := lvl.UnmarshalText([]byte(loglevel)); err != nil {
 		return nil, nil, fmt.Errorf("unmarshal log level %v", err)
 	}
-	if err := os.MkdirAll("logs", 0755); err != nil {
+	logsBase := os.Getenv("LOG_DIR")
+    if logsBase == "" {
+		logsBase = "logs"
+	}
+
+	if err := os.MkdirAll(logsBase, 0755); err != nil {
 		return nil, nil, fmt.Errorf("mkdir log folder %v", err)
 	}
 	timestamp := time.Now().UTC().Format("2006-01-02T15-04-05.000000")
-	logfilepath := filepath.Join("logs", fmt.Sprintf("%s.log", timestamp))
+	logfilepath := filepath.Join(logsBase, fmt.Sprintf("%s.log", timestamp))
 	logfile, err := os.OpenFile(logfilepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open log file: %v", err)
