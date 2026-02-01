@@ -27,11 +27,15 @@ const (
 )
 
 func New_Consumer(log *kafkalogger.ZapAdapter, ctx context.Context) (*Consumer, error, func() error) {
-	if err := os.MkdirAll("USER-EVENTS", 0755); err != nil {
+	eventsBase:=os.Getenv("CONS_EVENTS")
+	if eventsBase=="" {
+		eventsBase="USER-EVENTS"
+	}
+	if err := os.MkdirAll(eventsBase, 0755); err != nil {
 		return nil, fmt.Errorf("mkdir log_event folder %v", err), nil
 	}
 	timestamp := time.Now().UTC().Format("2006-01-02T15-04-05.000000")
-	logfilepath := filepath.Join("USER-EVENTS", fmt.Sprintf("%s.log", timestamp))
+	logfilepath := filepath.Join(eventsBase, fmt.Sprintf("%s.log", timestamp))
 	logfile, err := os.OpenFile(logfilepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.ERROR("Consumer ", "File opening", fmt.Sprintf("failed to open file :%v", err), nil)
