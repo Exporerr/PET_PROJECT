@@ -69,9 +69,9 @@ func main() {
 	r.HandleFunc("/tasks/register", h.POST_USER).Methods("POST")
 	r.HandleFunc("/tasks/login", h.Login).Methods("POST")
 	r.HandleFunc("/tasks", h.Create_Task).Methods("POST")
-	r.HandleFunc("/tasks/up/{user_id}/{tasl-id}", h.Update).Methods("PATCH")
-	r.HandleFunc("/tasks/del/{user_id}/{tasl-id}", h.Delete_Task).Methods("DELETE")
-	r.HandleFunc("/tasks/{id}", h.GetAllTasks).Methods("GET")
+	r.HandleFunc("/tasks/up/{user_id}/{task-id}", h.Update).Methods("PATCH")
+	r.HandleFunc("/tasks/del/{user_id}/{task-id}", h.Delete_Task).Methods("DELETE")
+	r.HandleFunc("/tasks/{user_id}", h.GetAllTasks).Methods("GET")
 
 	srv := http.Server{
 		Addr:    ":8081",

@@ -48,7 +48,7 @@ func main() {
 	consumer, err, event_file_close := kafkainit.New_Consumer(log, ctx)
 
 	if err != nil {
-		log.ERROR("Server", "Creating Consummer", "failed to create consumer and log file", nil)
+		log.ERROR("Server", "Creating Consumer", "failed to create consumer and log file", nil)
 		return
 	}
 	go consumer.Run(ctx)
@@ -94,7 +94,7 @@ func main() {
 
 	}()
 	<-stop
-	log.INFO("Server", "Server shuting down", "Shutting down server...", nil)
+	log.INFO("Server", "Server shutting down", "Shutting down server...", nil)
 	shutdown_ctx, shut_cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*15))
 	defer shut_cancel()
 	if err := srv.Shutdown(shutdown_ctx); err != nil {

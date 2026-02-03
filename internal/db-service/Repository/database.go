@@ -109,7 +109,7 @@ func (s *Storage) Create_Task(ctx context.Context, task *models.Request_Task, us
 		task.Title,
 		task.Description).Scan(&Resp.ID, &Resp.Title, &Resp.Description, &Resp.Status, &Resp.CreatedAt, &Resp.UserID)
 	if erro != nil {
-		s.log.ERROR("Create_Task(Storaeg)", "Создание задачи", fmt.Sprintf("ошибка при создании задачи: %v", erro), &user_id)
+		s.log.ERROR("Create_Task(Storage)", "Создание задачи", fmt.Sprintf("ошибка при создании задачи: %v", erro), &user_id)
 
 		return nil, erro
 	}
@@ -117,7 +117,7 @@ func (s *Storage) Create_Task(ctx context.Context, task *models.Request_Task, us
 		s.log.ERROR("storage", "Create_Task", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &user_id)
 		return nil, fmt.Errorf("commit failed: %w", err)
 	}
-	s.log.INFO("Create_Task(Storaeg)", "Создание задачи", fmt.Sprintf("Задача успешно создана , ID ЗАДАЧИ: %d", Resp.ID), &user_id)
+	s.log.INFO("Create_Task(Storage)", "Создание задачи", fmt.Sprintf("Задача успешно создана , ID ЗАДАЧИ: %d", Resp.ID), &user_id)
 
 	return &Resp, nil
 
