@@ -37,7 +37,7 @@ func Test_Delete(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPatch, "/tasks/patch", nil)
 			headers := map[string]string{
 				"user_id": tt.User_id,
-				"tasl-id": tt.Task_id,
+				"task-id": tt.Task_id,
 			}
 			new_req := mux.SetURLVars(req, headers)
 

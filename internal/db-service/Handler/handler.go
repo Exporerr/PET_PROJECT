@@ -44,11 +44,11 @@ func (h *Handler) POST_USER(w http.ResponseWriter, r *http.Request) {
 
 	erro := h.s.Create_New_user(ctx, user)
 	if erro != nil {
-		h.log.ERROR("Hndler(db-service", "Register", fmt.Sprintf("Пользовваель уже существует:%+v", erro), nil)
-
-		http.Error(w, "Такой пользователь уже сущетвует ", http.StatusConflict)
+		h.log.ERROR("Handler(db-service", "Register", fmt.Sprintf("Пользователь уже существует:%+v", erro), nil)
+		http.Error(w, "Такой пользователь уже существует ", http.StatusConflict)
+		return
 	}
-	h.log.INFO("Handler(db-service)", "Register", " POST Handler успешно звершился", nil)
+	h.log.INFO("Handler(db-service)", "Register", " POST Handler успешно завершился", nil)
 
 	w.WriteHeader(http.StatusCreated)
 
@@ -75,12 +75,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	useer, erro := h.s.Login(ctx, user.Email)
 	if erro != nil {
 		if errors.Is(erro, apperrors.ErrUserNotExist) {
-			h.log.ERROR("Hndler(db-service", "Login", fmt.Sprintf("Пользовваель не существует:%+v", erro), nil)
+			h.log.ERROR("Handler(db-service", "Login", fmt.Sprintf("Пользовваель не существует:%+v", erro), nil)
 			http.Error(w, "Такой пользователь не сущетвует ", http.StatusNotFound)
 			return
 
 		}
-		h.log.ERROR("Hndler(db-service", "Login", fmt.Sprintf("internal server error:%+v", err), nil)
+		h.log.ERROR("Handler(db-service", "Login", fmt.Sprintf("internal server error:%+v", erro), nil)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 
@@ -89,7 +89,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	erroo := json.NewEncoder(w).Encode(useer)
 	if erroo != nil {
-		h.log.ERROR("Handler", "Login(json encoding)", fmt.Sprintf("Ошибка при кодитровании json:  %v", erroo), &useer.ID)
+		h.log.ERROR("Handler", "Login(json encoding)", fmt.Sprintf("Ошибка при кодировании json:  %v", erroo), &useer.ID)
 		http.Error(w, "Ошибка кодирования json ", http.StatusBadRequest)
 		return
 
@@ -148,7 +148,7 @@ func (h *Handler) Delete_Task(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	idStr := vars["user_id"]
-	taskStr := vars["tasl-id"]
+	taskStr := vars["task-id"]
 
 	new_userID, erro := strconv.Atoi(idStr)
 	if erro != nil {
@@ -187,10 +187,21 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	idStr := vars["user_id"]
-	taskStr := vars["tasl-id"]
+	taskStr := vars["task-id"]
 
-	new_userID, _ := strconv.Atoi(idStr)
-	new_taskID, _ := strconv.Atoi(taskStr)
+	new_userID, err := strconv.Atoi(idStr)
+if err != nil {
+    h.log.ERROR("Handler(db-service)", "Update", "invalid user_id", nil)
+    http.Error(w, "Неверный формат user_id", http.StatusBadRequest)
+    return
+}
+	
+	new_taskID, err := strconv.Atoi(taskStr)
+if err != nil {
+    h.log.ERROR("Handler(db-service)", "Update", "invalid task_id", nil)
+    http.Error(w, "Неверный формат task_id", http.StatusBadRequest)
+    return
+}
 
 	_, err := h.s.Update_Task(ctx, new_userID, new_taskID)
 	if err != nil {
@@ -215,13 +226,18 @@ func (h *Handler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	idStr := vars["id"]
+	idStr := vars["user_id"]
 
-	new_ID, _ := strconv.Atoi(idStr)
+	new_ID, err := strconv.Atoi(idStr)
+	if err!=nil {
+		h.log.ERROR("Handler(db-service)", "GetAllTasks", "invalid user_id", nil)
+		http.Error(w, "Неверный формат user_id",http.StatusBadRequest)
+		return
+	}
 	task, err := h.s.GetAllTasks(ctx, new_ID)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrEmptySlice) {
-			http.Error(w, "У вас неу задач", http.StatusNotFound)
+			http.Error(w, "нет задач", http.StatusNotFound)
 
 			return
 		}
