@@ -229,3 +229,17 @@ func (s *Storage) Login(ctx context.Context, email string) (*models.User, error)
 	s.log.INFO("storage", "Login", "Пользователь успешно найден", &user.ID)
 	return user, nil
 }
+// дополнительные функции
+
+func isRetryable(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "40P01", // deadlock_detected
+			"55P03": // lock_not_available
+			return true
+		}
+	}
+	return false
+}
+
