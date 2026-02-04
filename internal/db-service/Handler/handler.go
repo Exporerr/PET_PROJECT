@@ -190,21 +190,21 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	taskStr := vars["task-id"]
 
 	new_userID, err := strconv.Atoi(idStr)
-if err != nil {
-    h.log.ERROR("Handler(db-service)", "Update", "invalid user_id", nil)
-    http.Error(w, "Неверный формат user_id", http.StatusBadRequest)
-    return
-}
-	
-	new_taskID, err := strconv.Atoi(taskStr)
-if err != nil {
-    h.log.ERROR("Handler(db-service)", "Update", "invalid task_id", nil)
-    http.Error(w, "Неверный формат task_id", http.StatusBadRequest)
-    return
-}
-
-	_, err := h.s.Update_Task(ctx, new_userID, new_taskID)
 	if err != nil {
+		h.log.ERROR("Handler(db-service)", "Update", "invalid user_id", nil)
+		http.Error(w, "Неверный формат user_id", http.StatusBadRequest)
+		return
+	}
+
+	new_taskID, err := strconv.Atoi(taskStr)
+	if err != nil {
+		h.log.ERROR("Handler(db-service)", "Update", "invalid task_id", nil)
+		http.Error(w, "Неверный формат task_id", http.StatusBadRequest)
+		return
+	}
+
+	_, erro := h.s.Update_Task(ctx, new_userID, new_taskID)
+	if erro != nil {
 		if errors.Is(err, apperrors.ErrTaskNotFound) {
 			h.log.ERROR("Handler(db-service)", "Update", "Задача не найдена", &new_userID)
 			http.Error(w, "Задача не найдена", http.StatusNotFound)
@@ -229,9 +229,9 @@ func (h *Handler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 	idStr := vars["user_id"]
 
 	new_ID, err := strconv.Atoi(idStr)
-	if err!=nil {
+	if err != nil {
 		h.log.ERROR("Handler(db-service)", "GetAllTasks", "invalid user_id", nil)
-		http.Error(w, "Неверный формат user_id",http.StatusBadRequest)
+		http.Error(w, "Неверный формат user_id", http.StatusBadRequest)
 		return
 	}
 	task, err := h.s.GetAllTasks(ctx, new_ID)

@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	repository "github.com/Explorerr/pet_project/internal/db-service/Repository"
 	kafkalogger "github.com/Explorerr/pet_project/pkg/Kafka_logger"
 	models "github.com/Explorerr/pet_project/pkg/Models"
 	apperrors "github.com/Explorerr/pet_project/pkg/app_errors"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Service struct {
@@ -80,8 +78,8 @@ func (s *Service) Create_Task(ctx context.Context, task *models.Request_Task, us
 	taskModel, err := s.repo.Create_Task(ctx, task, user_id)
 	if err == nil {
 		s.log.ERROR("Service(db-service)", "Create_Task", fmt.Sprintf("Не удалось создать задачу по ошибке: %v", err), &user_id)
-	    return nil, err
-			
+		return nil, err
+
 	}
 	s.log.INFO("Service(db-service)", "Create_Task", "Задача успешно создана", &user_id)
 	return taskModel, nil
@@ -90,17 +88,17 @@ func (s *Service) Create_Task(ctx context.Context, task *models.Request_Task, us
 
 func (s *Service) DeleteTask(ctx context.Context, userID, taskID int) (bool, error) {
 
-		deleted, err := s.repo.DeleteTask(ctx, userID, taskID)
-		if err !=nil {
-			if errors.Is(err, apperrors.ErrTaskNotFound) {
+	deleted, err := s.repo.DeleteTask(ctx, userID, taskID)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrTaskNotFound) {
 			s.log.ERROR("Service(db-service)", "Delete_Task", "Задачи не существует", &userID)
 			return false, err
-			}
-		
-			s.log.INFO("Service(db-service)", "Delete_Task", "Ошибка удаления задачи", &userID)
-			return false, err
-
 		}
+
+		s.log.INFO("Service(db-service)", "Delete_Task", "Ошибка удаления задачи", &userID)
+		return false, err
+
+	}
 	s.log.INFO("Service(db-service)", "Delete_Task", "Задача успешно удалена", &userID)
 	return deleted, nil
 
@@ -108,18 +106,16 @@ func (s *Service) DeleteTask(ctx context.Context, userID, taskID int) (bool, err
 
 func (s *Service) Update_Task(ctx context.Context, user_id int, task_id int) (bool, error) {
 
-		updated, err := s.repo.Update_Task(ctx, user_id, task_id)
-		if err != nil {
-			if errors.Is(err, apperrors.ErrTaskNotFound) {
+	updated, err := s.repo.Update_Task(ctx, user_id, task_id)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrTaskNotFound) {
 			s.log.ERROR("Service(db-service)", "Update_Task", "Задачи не существует", &user_id)
 			return false, err
-			}
-			s.log.ERROR("Service(db-service)", "Update_Task", "Ошибка удаления задачи", &user_id)
-	        return false, err
 		}
-		
+		s.log.ERROR("Service(db-service)", "Update_Task", "Ошибка удаления задачи", &user_id)
+		return false, err
+	}
 
-		s.log.INFO("Service(db-service)", "Update_Task", "Задача успешно обновлена", &user_id)
-		return updated, nil	
+	s.log.INFO("Service(db-service)", "Update_Task", "Задача успешно обновлена", &user_id)
+	return updated, nil
 }
-

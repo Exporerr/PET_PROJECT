@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"fmt"
 
@@ -10,6 +11,7 @@ import (
 	models "github.com/Explorerr/pet_project/pkg/Models"
 	apperrors "github.com/Explorerr/pet_project/pkg/app_errors"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -229,6 +231,7 @@ func (s *Storage) Login(ctx context.Context, email string) (*models.User, error)
 	s.log.INFO("storage", "Login", "Пользователь успешно найден", &user.ID)
 	return user, nil
 }
+
 // дополнительные функции
 
 func isRetryable(err error) bool {
@@ -236,10 +239,63 @@ func isRetryable(err error) bool {
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
 		case "40P01", // deadlock_detected
-			"55P03": // lock_not_available
+			"55P03", // lock_not_available
+			"40001": // serialization failure
 			return true
 		}
 	}
 	return false
 }
 
+func (s *Storage) Update_tsk(ctx context.Context, user_id int, task_id int) (bool, error) {
+	const (
+		maxRetries = 3
+	)
+	for i := 0; i < maxRetries; i++ {
+		if ctx.Err() != nil {
+
+			return false, ctx.Err()
+		}
+		tx, err := s.db.Begin(ctx)
+		if err != nil {
+			if i == maxRetries-1 {
+				s.log.ERROR("storage", "Update_task", fmt.Sprintf("Не удалось начать транзакцию: %v", err), &user_id)
+				return false, apperrors.ErrTransactionNotInit
+			}
+			time.Sleep(time.Millisecond * 100)
+			continue
+		}
+
+		query := `UPDATE tasks SET status = 'done' WHERE user_id = $1 AND id = $2`
+		tag, err := tx.Exec(ctx, query, user_id, task_id)
+		if err != nil {
+			if !isRetryable(err) || i == maxRetries-1 {
+				s.log.ERROR("storage", "Update_task", fmt.Sprintf("Ошибка выполнения запроса: %v", err), &user_id)
+				return false, apperrors.ErrWentWrong
+			}
+			tx.Rollback(ctx)
+			time.Sleep(time.Millisecond * 100)
+			continue
+		}
+
+		if tag.RowsAffected() == 0 {
+			s.log.INFO("storage", "update_task", "Задача не найдена", &user_id)
+			return false, apperrors.ErrTaskNotFound
+		}
+
+		if err = tx.Commit(ctx); err != nil {
+			if !isRetryable(err) || i == maxRetries-1 {
+				s.log.ERROR("storage", "Update_task", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &user_id)
+				return false, fmt.Errorf("commit failed: %w", err)
+			}
+			tx.Rollback(ctx)
+			time.Sleep(time.Millisecond * 100)
+			continue
+
+		}
+
+		s.log.INFO("storage", "Update_task", "Задача успешно выполнена", &user_id)
+		return true, nil
+	}
+	return false, apperrors.ErrWentWrong
+}
