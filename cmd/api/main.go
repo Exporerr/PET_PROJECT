@@ -65,7 +65,7 @@ func main() {
 
 	}
 	// Создание Клиента для запросов к db-service(у)
-	cli := client.NewClient(baseURL, *&log)
+	cli := client.NewClient(baseURL, log)
 	// Создание Сервиса
 	s := serviceapi.NewService_api(*cli, *log)
 	// Создание Хедлера

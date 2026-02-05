@@ -8,11 +8,11 @@ import (
 
 type Repository interface {
 	Create_Task(ctx context.Context, task *models.Request_Task, user_id int) (*models.Task, error)
-	Update_Task(ctx context.Context, user_id int, task_id int) (bool, error)
+	Update_Task(ctx context.Context, user_id int, task_id int) error
 	Get_Tasks(user_id int, ctx context.Context) ([]models.Task, error)
 	Login(ctx context.Context, email string) (*models.User, error)
 	Create_New_User(ctx context.Context, user models.Request_Register) error
-	DeleteTask(ctx context.Context, userID, taskID int) (bool, error)
+	DeleteTask(ctx context.Context, userID, taskID int) error
 	Create_Index(ctx context.Context) error
 }
 

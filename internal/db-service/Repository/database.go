@@ -77,82 +77,118 @@ func (s *Storage) Create_New_User(ctx context.Context, user models.Request_Regis
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			s.log.ERROR(" Create_New_User", "Создание пользователя", fmt.Sprintf("пользователь с email %s уже существует", user.Email), &id)
+			s.log.ERROR(" Create_New_User", "Создание пользователя", fmt.Sprintf("пользователь с email %s уже существует", user.Email), nil)
 			return apperrors.ErrUserAlreadyExists
-			//return apperrors.ErrUserAlreadyExists
-
 		}
-
 		return err
 
 	}
-
+	s.log.INFO(" Create_New_User", "Создание пользователя", fmt.Sprintf("пользователь с email:|%s|, id:|%d| успешно создан", user.Email, &id), &id)
 	return nil
 
 }
 
 func (s *Storage) Create_Task(ctx context.Context, task *models.Request_Task, user_id int) (*models.Task, error) {
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		s.log.ERROR("storage", "Create_Task", fmt.Sprintf("Не удалось начать транзакцию: %v", err), &user_id)
-		return nil, apperrors.ErrTransactionNotInit
+	const (
+		baseDelay  = time.Millisecond * 100
+		maxRetries = 3
+	)
+	for i := 0; i < maxRetries; i++ {
+		tx, err := s.db.Begin(ctx)
+		if err != nil {
+			s.log.ERROR("storage", "Create_Task", fmt.Sprintf("Не удалось начать транзакцию: %v", err), &user_id)
+			return nil, apperrors.ErrTransactionNotInit
+		}
+
+		var Resp models.Task
+		query := `
+		INSERT INTO tasks ( user_id, title , description)
+		VALUES ($1, $2, $3)
+		RETURNING id, title, description, status, created_at,user_id
+		`
+		erro := tx.QueryRow(ctx, query,
+			user_id,
+			task.Title,
+			task.Description).Scan(&Resp.ID, &Resp.Title, &Resp.Description, &Resp.Status, &Resp.CreatedAt, &Resp.UserID)
+
+		if erro != nil {
+			_ = tx.Rollback(ctx)
+			if !isRetryable(erro) || i == maxRetries-1 {
+				s.log.ERROR("Create_Task(Storage)", "Создание задачи", fmt.Sprintf("ошибка при создании задачи: %v", erro), &user_id)
+				return nil, erro
+			}
+
+			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
+			continue
+
+		}
+		if err = tx.Commit(ctx); err != nil {
+			_ = tx.Rollback(ctx)
+			if !isRetryable(err) || i == maxRetries-1 {
+				s.log.ERROR("storage", "Create_Task", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &user_id)
+				return nil, fmt.Errorf("commit failed: %w", err)
+			}
+
+			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
+			continue
+		}
+		s.log.INFO("Create_Task(Storage)", "Создание задачи", fmt.Sprintf("Задача успешно создана , ID ЗАДАЧИ: %d", Resp.ID), &user_id)
+
+		return &Resp, nil
 
 	}
-	defer tx.Rollback(ctx)
-	var Resp models.Task
-	query := `
-	INSERT INTO tasks ( user_id, title , description)
-	VALUES ($1, $2, $3)
-	 RETURNING id, title, description, status, created_at,user_id
-	
-	`
-	erro := tx.QueryRow(ctx, query,
-		user_id,
-		task.Title,
-		task.Description).Scan(&Resp.ID, &Resp.Title, &Resp.Description, &Resp.Status, &Resp.CreatedAt, &Resp.UserID)
-	if erro != nil {
-		s.log.ERROR("Create_Task(Storage)", "Создание задачи", fmt.Sprintf("ошибка при создании задачи: %v", erro), &user_id)
-
-		return nil, erro
-	}
-	if err = tx.Commit(ctx); err != nil {
-		s.log.ERROR("storage", "Create_Task", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &user_id)
-		return nil, fmt.Errorf("commit failed: %w", err)
-	}
-	s.log.INFO("Create_Task(Storage)", "Создание задачи", fmt.Sprintf("Задача успешно создана , ID ЗАДАЧИ: %d", Resp.ID), &user_id)
-
-	return &Resp, nil
+	return nil, apperrors.ErrWentWrong
 
 }
 
-func (s *Storage) DeleteTask(ctx context.Context, userID, taskID int) (bool, error) {
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		s.log.ERROR("storage", "DeleteTask", fmt.Sprintf("Не удалось начать транзакцию: %v", err), &userID)
-		return false, err
+func (s *Storage) DeleteTask(ctx context.Context, user_id int, task_id int) error {
+	const (
+		maxRetries = 3
+	)
+	for i := 0; i < maxRetries; i++ {
+		if ctx.Err() != nil {
+
+			return ctx.Err()
+		}
+		tx, err := s.db.Begin(ctx)
+		if err != nil {
+			s.log.ERROR("storage", "Delete_Task", fmt.Sprintf("Не удалось начать транзакцию: %v", err), &user_id)
+			return apperrors.ErrTransactionNotInit
+
+		}
+
+		query := `DELETE FROM tasks WHERE user_id=$1 AND id=$2`
+		tag, err := tx.Exec(ctx, query, user_id, task_id)
+		if err != nil {
+			if !isRetryable(err) || i == maxRetries-1 {
+				s.log.ERROR("storage", "Delete_Task", fmt.Sprintf("Ошибка выполнения SQL запроса: %v", err), &user_id)
+				return apperrors.ErrWentWrong
+			}
+			tx.Rollback(ctx)
+			time.Sleep(time.Millisecond * 100)
+			continue
+		}
+
+		if tag.RowsAffected() == 0 {
+			tx.Rollback(ctx)
+			s.log.INFO("storage", "Delete_Task", "Задача не найдена", &user_id)
+			return apperrors.ErrTaskNotFound
+		}
+
+		if err = tx.Commit(ctx); err != nil {
+			if !isRetryable(err) || i == maxRetries-1 {
+				s.log.ERROR("storage", "Delete_Task", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &user_id)
+				return fmt.Errorf("commit failed: %w", err)
+			}
+			tx.Rollback(ctx)
+			time.Sleep(time.Millisecond * 100)
+			continue
+
+		}
+		s.log.INFO("storage", "Delete_Task", "Задача успешно удалена", &user_id)
+		return nil
 	}
-	defer tx.Rollback(ctx) // безопасно, если транзакция уже зафиксирована
-
-	query := `DELETE FROM tasks WHERE user_id=$1 AND id=$2`
-	tag, err := tx.Exec(ctx, query, userID, taskID)
-	if tag.RowsAffected() == 0 {
-		s.log.INFO("storage", "DeleteTask", "Задача не найдена", &userID)
-		return false, apperrors.ErrTaskNotFound
-
-	}
-
-	if err != nil {
-
-		s.log.ERROR("Storage(db-servic)", "DeleteTask", "Произошла ошибка при удалении задачи", &userID)
-		return false, apperrors.ErrWentWrong
-	}
-	if err = tx.Commit(ctx); err != nil {
-		s.log.ERROR("storage", "DeleteTask", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &userID)
-		return false, fmt.Errorf("commit failed: %w", err)
-	}
-
-	s.log.INFO("storage", "DeleteTask", "Задача успешно удалена", &userID)
-	return true, nil
+	return apperrors.ErrWentWrong
 }
 
 func (s *Storage) Get_Tasks(user_id int, ctx context.Context) ([]models.Task, error) {
@@ -185,36 +221,54 @@ func (s *Storage) Get_Tasks(user_id int, ctx context.Context) ([]models.Task, er
 	return tasks, nil
 }
 
-func (s *Storage) Update_Task(ctx context.Context, user_id int, task_id int) (bool, error) {
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		s.log.ERROR("storage", "Update_task", fmt.Sprintf("Не удалось начать транзакцию: %v", err), &user_id)
-		return false, apperrors.ErrTransactionNotInit
+func (s *Storage) Update_Task(ctx context.Context, user_id int, task_id int) error {
+	const (
+		maxRetries = 3
+	)
+	for i := 0; i < maxRetries; i++ {
+		if ctx.Err() != nil {
 
+			return ctx.Err()
+		}
+		tx, err := s.db.Begin(ctx)
+		if err != nil {
+			s.log.ERROR("storage", "Update_task", fmt.Sprintf("Не удалось начать транзакцию: %v", err), &user_id)
+			return apperrors.ErrTransactionNotInit
+
+		}
+
+		query := `UPDATE tasks SET status = 'done' WHERE user_id = $1 AND id = $2`
+		tag, err := tx.Exec(ctx, query, user_id, task_id)
+		if err != nil {
+			if !isRetryable(err) || i == maxRetries-1 {
+				s.log.ERROR("storage", "Update_task", fmt.Sprintf("Ошибка выполнения SQL запроса: %v", err), &user_id)
+				return apperrors.ErrWentWrong
+			}
+			tx.Rollback(ctx)
+			time.Sleep(time.Millisecond * 100)
+			continue
+		}
+
+		if tag.RowsAffected() == 0 {
+			tx.Rollback(ctx)
+			s.log.INFO("storage", "Update_task", "Задача не найдена", &user_id)
+			return apperrors.ErrTaskNotFound
+		}
+
+		if err = tx.Commit(ctx); err != nil {
+			if !isRetryable(err) || i == maxRetries-1 {
+				s.log.ERROR("storage", "Update_task", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &user_id)
+				return fmt.Errorf("commit failed: %w", err)
+			}
+			tx.Rollback(ctx)
+			time.Sleep(time.Millisecond * 100)
+			continue
+
+		}
+		s.log.INFO("storage", "Update_task", "Задача успешно выполнена", &user_id)
+		return nil
 	}
-	defer tx.Rollback(ctx)
-	query := `UPDATE tasks SET status = 'done' WHERE user_id = $1 AND id = $2`
-
-	tag, err := tx.Exec(ctx, query, user_id, task_id)
-
-	if err != nil {
-		s.log.ERROR("storage", "Update_task", fmt.Sprintf("Ошибка выполнения запроса: %v", err), &user_id)
-		return false, apperrors.ErrWentWrong
-	}
-
-	if tag.RowsAffected() == 0 {
-		s.log.INFO("storage", "update_task", "Задача не найдена", &user_id)
-		return false, apperrors.ErrTaskNotFound
-	}
-
-	if err = tx.Commit(ctx); err != nil {
-		s.log.ERROR("storage", "Update_task", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &user_id)
-		return false, fmt.Errorf("commit failed: %w", err)
-	}
-
-	s.log.INFO("storage", "Update_task", "Задача успешно выполнена", &user_id)
-	return true, nil
-
+	return apperrors.ErrWentWrong
 }
 func (s *Storage) Login(ctx context.Context, email string) (*models.User, error) {
 	query := `SELECT id, username, email, password_hash FROM users WHERE email = $1 LIMIT 1`
@@ -245,57 +299,4 @@ func isRetryable(err error) bool {
 		}
 	}
 	return false
-}
-
-func (s *Storage) Update_tsk(ctx context.Context, user_id int, task_id int) (bool, error) {
-	const (
-		maxRetries = 3
-	)
-	for i := 0; i < maxRetries; i++ {
-		if ctx.Err() != nil {
-
-			return false, ctx.Err()
-		}
-		tx, err := s.db.Begin(ctx)
-		if err != nil {
-			if i == maxRetries-1 {
-				s.log.ERROR("storage", "Update_task", fmt.Sprintf("Не удалось начать транзакцию: %v", err), &user_id)
-				return false, apperrors.ErrTransactionNotInit
-			}
-			time.Sleep(time.Millisecond * 100)
-			continue
-		}
-
-		query := `UPDATE tasks SET status = 'done' WHERE user_id = $1 AND id = $2`
-		tag, err := tx.Exec(ctx, query, user_id, task_id)
-		if err != nil {
-			if !isRetryable(err) || i == maxRetries-1 {
-				s.log.ERROR("storage", "Update_task", fmt.Sprintf("Ошибка выполнения запроса: %v", err), &user_id)
-				return false, apperrors.ErrWentWrong
-			}
-			tx.Rollback(ctx)
-			time.Sleep(time.Millisecond * 100)
-			continue
-		}
-
-		if tag.RowsAffected() == 0 {
-			s.log.INFO("storage", "update_task", "Задача не найдена", &user_id)
-			return false, apperrors.ErrTaskNotFound
-		}
-
-		if err = tx.Commit(ctx); err != nil {
-			if !isRetryable(err) || i == maxRetries-1 {
-				s.log.ERROR("storage", "Update_task", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &user_id)
-				return false, fmt.Errorf("commit failed: %w", err)
-			}
-			tx.Rollback(ctx)
-			time.Sleep(time.Millisecond * 100)
-			continue
-
-		}
-
-		s.log.INFO("storage", "Update_task", "Задача успешно выполнена", &user_id)
-		return true, nil
-	}
-	return false, apperrors.ErrWentWrong
 }

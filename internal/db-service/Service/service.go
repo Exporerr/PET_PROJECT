@@ -32,7 +32,7 @@ func (s *Service) Create_New_user(ctx context.Context, user models.Request_Regis
 		return err
 
 	}
-	s.log.ERROR("Service(db-service)", "Crearte_New_User", "Сервис успешно отработал", nil)
+	s.log.INFO("Service(db-service)", "Crearte_New_User", "Сервис успешно отработал", nil)
 	return nil
 
 }
@@ -86,36 +86,36 @@ func (s *Service) Create_Task(ctx context.Context, task *models.Request_Task, us
 
 }
 
-func (s *Service) DeleteTask(ctx context.Context, userID, taskID int) (bool, error) {
+func (s *Service) DeleteTask(ctx context.Context, userID, taskID int) error {
 
-	deleted, err := s.repo.DeleteTask(ctx, userID, taskID)
+	err := s.repo.DeleteTask(ctx, userID, taskID)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrTaskNotFound) {
 			s.log.ERROR("Service(db-service)", "Delete_Task", "Задачи не существует", &userID)
-			return false, err
+			return err
 		}
 
 		s.log.INFO("Service(db-service)", "Delete_Task", "Ошибка удаления задачи", &userID)
-		return false, err
+		return err
 
 	}
 	s.log.INFO("Service(db-service)", "Delete_Task", "Задача успешно удалена", &userID)
-	return deleted, nil
+	return nil
 
 }
 
-func (s *Service) Update_Task(ctx context.Context, user_id int, task_id int) (bool, error) {
+func (s *Service) Update_Task(ctx context.Context, user_id int, task_id int) error {
 
-	updated, err := s.repo.Update_Task(ctx, user_id, task_id)
+	err := s.repo.Update_Task(ctx, user_id, task_id)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrTaskNotFound) {
 			s.log.ERROR("Service(db-service)", "Update_Task", "Задачи не существует", &user_id)
-			return false, err
+			return err
 		}
 		s.log.ERROR("Service(db-service)", "Update_Task", "Ошибка удаления задачи", &user_id)
-		return false, err
+		return err
 	}
 
 	s.log.INFO("Service(db-service)", "Update_Task", "Задача успешно обновлена", &user_id)
-	return updated, nil
+	return nil
 }

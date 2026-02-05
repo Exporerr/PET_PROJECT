@@ -28,7 +28,7 @@ func New_ZapAdapter(service string, loglevel string) (*ZapAdapter, func() error,
 		return nil, nil, fmt.Errorf("unmarshal log level %v", err)
 	}
 	logsBase := os.Getenv("LOG_DIR")
-    if logsBase == "" {
+	if logsBase == "" {
 		logsBase = "logs"
 	}
 

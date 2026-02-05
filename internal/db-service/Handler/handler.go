@@ -163,7 +163,7 @@ func (h *Handler) Delete_Task(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := h.s.DeleteTask(ctx, new_userID, new_taskID)
+	err := h.s.DeleteTask(ctx, new_userID, new_taskID)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrTaskNotFound) {
 			h.log.ERROR("Handler(db-service)", "Delete", "Задача не найдена", &new_userID)
@@ -203,7 +203,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, erro := h.s.Update_Task(ctx, new_userID, new_taskID)
+	erro := h.s.Update_Task(ctx, new_userID, new_taskID)
 	if erro != nil {
 		if errors.Is(err, apperrors.ErrTaskNotFound) {
 			h.log.ERROR("Handler(db-service)", "Update", "Задача не найдена", &new_userID)
