@@ -143,6 +143,7 @@ func (s *Storage) Create_Task(ctx context.Context, task *models.Request_Task, us
 
 func (s *Storage) DeleteTask(ctx context.Context, user_id int, task_id int) error {
 	const (
+		baseDelay  = time.Millisecond * 100
 		maxRetries = 3
 	)
 	for i := 0; i < maxRetries; i++ {
@@ -160,12 +161,13 @@ func (s *Storage) DeleteTask(ctx context.Context, user_id int, task_id int) erro
 		query := `DELETE FROM tasks WHERE user_id=$1 AND id=$2`
 		tag, err := tx.Exec(ctx, query, user_id, task_id)
 		if err != nil {
+			_ = tx.Rollback(ctx)
 			if !isRetryable(err) || i == maxRetries-1 {
 				s.log.ERROR("storage", "Delete_Task", fmt.Sprintf("Ошибка выполнения SQL запроса: %v", err), &user_id)
 				return apperrors.ErrWentWrong
 			}
-			tx.Rollback(ctx)
-			time.Sleep(time.Millisecond * 100)
+
+			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
 			continue
 		}
 
@@ -176,12 +178,13 @@ func (s *Storage) DeleteTask(ctx context.Context, user_id int, task_id int) erro
 		}
 
 		if err = tx.Commit(ctx); err != nil {
+			_ = tx.Rollback(ctx)
 			if !isRetryable(err) || i == maxRetries-1 {
 				s.log.ERROR("storage", "Delete_Task", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &user_id)
 				return fmt.Errorf("commit failed: %w", err)
 			}
-			tx.Rollback(ctx)
-			time.Sleep(time.Millisecond * 100)
+
+			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
 			continue
 
 		}
@@ -223,6 +226,7 @@ func (s *Storage) Get_Tasks(user_id int, ctx context.Context) ([]models.Task, er
 
 func (s *Storage) Update_Task(ctx context.Context, user_id int, task_id int) error {
 	const (
+		baseDelay  = time.Millisecond * 100
 		maxRetries = 3
 	)
 	for i := 0; i < maxRetries; i++ {
@@ -240,12 +244,13 @@ func (s *Storage) Update_Task(ctx context.Context, user_id int, task_id int) err
 		query := `UPDATE tasks SET status = 'done' WHERE user_id = $1 AND id = $2`
 		tag, err := tx.Exec(ctx, query, user_id, task_id)
 		if err != nil {
+			_ = tx.Rollback(ctx)
 			if !isRetryable(err) || i == maxRetries-1 {
 				s.log.ERROR("storage", "Update_task", fmt.Sprintf("Ошибка выполнения SQL запроса: %v", err), &user_id)
 				return apperrors.ErrWentWrong
 			}
-			tx.Rollback(ctx)
-			time.Sleep(time.Millisecond * 100)
+
+			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
 			continue
 		}
 
@@ -256,12 +261,13 @@ func (s *Storage) Update_Task(ctx context.Context, user_id int, task_id int) err
 		}
 
 		if err = tx.Commit(ctx); err != nil {
+			_ = tx.Rollback(ctx)
 			if !isRetryable(err) || i == maxRetries-1 {
 				s.log.ERROR("storage", "Update_task", fmt.Sprintf("Ошибка коммита транзакции: %v", err), &user_id)
 				return fmt.Errorf("commit failed: %w", err)
 			}
-			tx.Rollback(ctx)
-			time.Sleep(time.Millisecond * 100)
+
+			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
 			continue
 
 		}
