@@ -90,7 +90,6 @@ func (s *Storage) Create_New_User(ctx context.Context, user models.Request_Regis
 
 func (s *Storage) Create_Task(ctx context.Context, task *models.Request_Task, user_id int) (*models.Task, error) {
 	const (
-		baseDelay  = time.Millisecond * 100
 		maxRetries = 3
 	)
 	for i := 0; i < maxRetries; i++ {
@@ -118,7 +117,7 @@ func (s *Storage) Create_Task(ctx context.Context, task *models.Request_Task, us
 				return nil, erro
 			}
 
-			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
+			retryDelay(i)
 			continue
 
 		}
@@ -129,7 +128,7 @@ func (s *Storage) Create_Task(ctx context.Context, task *models.Request_Task, us
 				return nil, fmt.Errorf("commit failed: %w", err)
 			}
 
-			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
+			retryDelay(i)
 			continue
 		}
 		s.log.INFO("Create_Task(Storage)", "Создание задачи", fmt.Sprintf("Задача успешно создана , ID ЗАДАЧИ: %d", Resp.ID), &user_id)
@@ -143,7 +142,6 @@ func (s *Storage) Create_Task(ctx context.Context, task *models.Request_Task, us
 
 func (s *Storage) DeleteTask(ctx context.Context, user_id int, task_id int) error {
 	const (
-		baseDelay  = time.Millisecond * 100
 		maxRetries = 3
 	)
 	for i := 0; i < maxRetries; i++ {
@@ -167,7 +165,7 @@ func (s *Storage) DeleteTask(ctx context.Context, user_id int, task_id int) erro
 				return apperrors.ErrWentWrong
 			}
 
-			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
+			retryDelay(i)
 			continue
 		}
 
@@ -184,7 +182,7 @@ func (s *Storage) DeleteTask(ctx context.Context, user_id int, task_id int) erro
 				return fmt.Errorf("commit failed: %w", err)
 			}
 
-			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
+			retryDelay(i)
 			continue
 
 		}
@@ -226,7 +224,6 @@ func (s *Storage) Get_Tasks(user_id int, ctx context.Context) ([]models.Task, er
 
 func (s *Storage) Update_Task(ctx context.Context, user_id int, task_id int) error {
 	const (
-		baseDelay  = time.Millisecond * 100
 		maxRetries = 3
 	)
 	for i := 0; i < maxRetries; i++ {
@@ -234,6 +231,7 @@ func (s *Storage) Update_Task(ctx context.Context, user_id int, task_id int) err
 
 			return ctx.Err()
 		}
+
 		tx, err := s.db.Begin(ctx)
 		if err != nil {
 			s.log.ERROR("storage", "Update_task", fmt.Sprintf("Не удалось начать транзакцию: %v", err), &user_id)
@@ -249,8 +247,7 @@ func (s *Storage) Update_Task(ctx context.Context, user_id int, task_id int) err
 				s.log.ERROR("storage", "Update_task", fmt.Sprintf("Ошибка выполнения SQL запроса: %v", err), &user_id)
 				return apperrors.ErrWentWrong
 			}
-
-			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
+			retryDelay(i)
 			continue
 		}
 
@@ -267,7 +264,7 @@ func (s *Storage) Update_Task(ctx context.Context, user_id int, task_id int) err
 				return fmt.Errorf("commit failed: %w", err)
 			}
 
-			time.Sleep(baseDelay * time.Duration(1<<uint(i)))
+			retryDelay(i)
 			continue
 
 		}
@@ -292,7 +289,7 @@ func (s *Storage) Login(ctx context.Context, email string) (*models.User, error)
 	return user, nil
 }
 
-// дополнительные функции
+// вспомогательные  функции
 
 func isRetryable(err error) bool {
 	var pgErr *pgconn.PgError
@@ -305,4 +302,9 @@ func isRetryable(err error) bool {
 		}
 	}
 	return false
+}
+
+func retryDelay(i int) {
+	base := 100 * time.Millisecond
+	time.Sleep(base * time.Duration(1<<i))
 }
