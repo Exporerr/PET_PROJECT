@@ -13,7 +13,6 @@ type Repository interface {
 	Login(ctx context.Context, email string) (*models.User, error)
 	Create_New_User(ctx context.Context, user models.Request_Register) error
 	DeleteTask(ctx context.Context, userID, taskID int) error
-	Create_Index(ctx context.Context) error
 }
 
 func NewRepo(db *Storage) Repository {

@@ -34,31 +34,6 @@ func NewUserPool(pool *pgxpool.Pool, kafka_logger kafkalogger.LoggerInterface) *
 	return &Storage{db: pool, log: kafka_logger}
 }
 
-func (s *Storage) Create_Index(ctx context.Context) error { // ЗАПУСТИТЬ ПОСЛЕ СОЗДАНИЯ STORAGE
-	indexes := []string{
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)`,
-		`CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id)`,
-	}
-	for _, index := range indexes {
-		if _, err := s.db.Exec(ctx, index); err != nil {
-			return fmt.Errorf("ошибка при создании индекса: %w", err)
-		}
-	}
-
-	return nil
-}
-func (s *Storage) If_notExist(ctx context.Context) {
-	query := `CREATE TABLE IF NOT EXISTS tasks (
-    id SERIAL PRIMARY KEY,      
-    title VARCHAR(255) NOT NULL, 
-    description TEXT,             
-    status BOOLEAN DEFAULT FALSE, 
-    created_at TIMESTAMP DEFAULT NOW()  
-);`
-	s.db.Exec(ctx, query)
-
-}
-
 // РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ
 func (s *Storage) Create_New_User(ctx context.Context, user models.Request_Register) error {
 	var id int
