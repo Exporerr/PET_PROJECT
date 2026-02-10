@@ -21,9 +21,9 @@ import (
 )
 
 func main() {
-	env_path:=os.Getenv("DB_ENV")
-	if env_path=="" {
-		env_path="../../internal/db-service/configs/.env"
+	env_path := os.Getenv("DB_ENV")
+	if env_path == "" {
+		env_path = "../../internal/db-service/configs/.env"
 	}
 	err := godotenv.Load(env_path)
 	if err != nil {
@@ -60,7 +60,7 @@ func main() {
 
 	}
 	defer pool.Close()
-	db_conn := repository.NewUserPool(pool, &*log)
+	db_conn := repository.NewUserPool(pool, log)
 	repo := repository.NewRepo(db_conn)
 	s := service.New_Service(repo, log)
 	serv := serviceoriginal.New_User_service(s)

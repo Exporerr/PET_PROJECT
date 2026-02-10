@@ -26,16 +26,16 @@ type Service_mock struct {
 	Err         error
 }
 
-func (s *Service_mock) DeleteTask(ctx context.Context, userID, taskID int) (bool, error) {
+func (s *Service_mock) DeleteTask(ctx context.Context, userID, taskID int) error {
 	if s.Err != nil {
 		if errors.Is(s.Err, ErrTaskNotFound) {
 
-			return false, ErrTaskNotFound
+			return ErrTaskNotFound
 		}
-		return false, s.Err
+		return s.Err
 
 	}
-	return true, nil
+	return nil
 
 }
 
@@ -54,16 +54,16 @@ func (s *Service_mock) Create_Task(ctx context.Context, task *models.Request_Tas
 	return s.Task, nil
 
 }
-func (s *Service_mock) Update_Task(ctx context.Context, user_id int, task_id int) (bool, error) {
+func (s *Service_mock) Update_Task(ctx context.Context, user_id int, task_id int) error {
 	if s.Err != nil {
 		if errors.Is(s.Err, ErrTaskNotFound) {
 
-			return false, ErrTaskNotFound
+			return ErrTaskNotFound
 		}
-		return false, s.Err
+		return s.Err
 
 	}
-	return true, nil
+	return nil
 
 }
 func (s *Service_mock) GetAllTasks(ctx context.Context, user_id int) ([]models.Task, error) {

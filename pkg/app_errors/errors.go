@@ -10,4 +10,5 @@ var ErrUserNotExist = errors.New("пользователя не существу
 var ErrUserAlreadyExists = errors.New("пользователь уже существует")
 var ErrWentWrong = errors.New("упс! Что-то пошло не так")
 var ErrTransactionNotInit = errors.New(" Ошибка инициализации транзакции")
+var ErrTransactionRollback = errors.New("Rollback транзакции")
 var ErrTaskNotFound = errors.New("такой задачи нет ")
