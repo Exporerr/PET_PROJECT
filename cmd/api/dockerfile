@@ -1,25 +1,28 @@
 # ---------- STAGE 1: builder ----------
-FROM golang:1.24 AS builder
+FROM golang:1.24.13-bookworm AS builder
 
 WORKDIR /app
 
 # копируем модульные файлы
-COPY go.mod go.sum ././
+COPY go.mod go.sum ./
+RUN go mod download
 
 
-# копируем весь проект
-COPY . .
+COPY internal/api-service ./internal/api-service
+COPY cmd/api ./cmd/api
+COPY pkg/apperrors ./pkg/app_errors
+COPY pkg/context_key ./pkg/context_key
+COPY pkg/kafka_logger ./pkg/kafka_logger
+COPY pkg/kafkainit ./pkg/kafkainit
+COPY pkg/models ./pkg/models
 
-# Сборка сервиса
-WORKDIR /app/cmd/api
-RUN CGO_ENABLED=0 GOOS=linux go build -o server
 
-# ---------- STAGE 2: финальный образ ----------
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/api ./cmd/api
+
+
+# ---------- финальный образ ----------
 FROM alpine:3.21.3
-
 WORKDIR /app
-COPY --from=builder /app/cmd/api/server .
-
+COPY --from=builder /app/api .
 EXPOSE 8080
-
-CMD ["./server"]
+CMD ["./api"]

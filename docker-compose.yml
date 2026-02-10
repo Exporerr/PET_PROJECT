@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: api-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      DB_SERVICE_URL: http://db:8081
+    networks:
+      - appnet
+
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    container_name: db-service
+    ports:
+      - "8090:8090"
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - appnet
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: appdb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - appnet
+
+volumes:
+  pgdata:
+
+networks:
+  appnet:
+
