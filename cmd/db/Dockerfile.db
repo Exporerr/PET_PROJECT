@@ -10,10 +10,10 @@ RUN go mod download
 
 COPY internal/db-service ./internal/db-service
 COPY cmd/db ./cmd/db
-COPY pkg/apperrors ./pkg/app_errors
-COPY pkg/context_key ./pkg/context_key
-COPY pkg/kafka_logger ./pkg/kafka_logger
-COPY pkg/models ./pkg/models
+COPY pkg/app_errors ./pkg/app_errors
+COPY pkg/context_Key ./pkg/context_Key
+COPY pkg/Kafka_logger ./pkg/Kafka_logger
+COPY pkg/Models ./pkg/Models
 
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/db ./cmd/db

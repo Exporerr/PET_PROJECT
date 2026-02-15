@@ -10,11 +10,11 @@ RUN go mod download
 
 COPY internal/api-service ./internal/api-service
 COPY cmd/api ./cmd/api
-COPY pkg/apperrors ./pkg/app_errors
-COPY pkg/context_key ./pkg/context_key
-COPY pkg/kafka_logger ./pkg/kafka_logger
+COPY pkg/app_errors ./pkg/app_errors
+COPY pkg/context_Key ./pkg/context_Key
+COPY pkg/Kafka_logger ./pkg/Kafka_logger
 COPY pkg/kafkainit ./pkg/kafkainit
-COPY pkg/models ./pkg/models
+COPY pkg/Models ./pkg/Models
 
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/api ./cmd/api

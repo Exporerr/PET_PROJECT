@@ -5,13 +5,18 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: ./cmd/api/Dockerfile.api
     container_name: api-service
+    volumes:
+    - ./cmd/api/USER-EVENTS:/app/USER-EVENTS ## для событий из кафка 
+    - ./cmd/api/logs:/app/logs
     ports:
       - "8080:8080"
     depends_on:
       - db
+      - kafka
     environment:
+      KAFKA_BROKER: kafka:9092
       API_ENV: /app/internal/api-service/Configs/.env
       DB_SERVICE_URL: http://db-service:8081
     networks:
@@ -20,12 +25,15 @@ services:
   db:
     build:
       context: .
-      dockerfile: Dockerfile.db
+      dockerfile: ./cmd/db/Dockerfile.db
     container_name: db-service
+    volumes:
+    - ./cmd/db/logs:/app/logs
     ports:
       - "8081:8081"
     depends_on:
       - postgres
+      - migrate
     environment:
       DB_ENV: /app/internal/db-service/configs/.env
       DB_HOST: postgres
@@ -48,25 +56,22 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - appnet
+
   migrate:
-  build:
-    context: .
-    dockerfile: Dockerfile.db
-  depends_on:
-    - db
-  environment:
-    DB_HOST: postgres
-    DB_PORT: 5432
-    DB_USER: postgres
-    DB_PASSWORD: post4302
-    DB_NAME: taskss
-  command: ["migrate", "-path", "/app/migrations", "-database", "postgres://postgres:post4302@postgres:5432/taskss?sslmode=disable", "up"]
-  restart: "no"
-  networks:
-    - appnet
+    image: migrate/migrate:latest
+    volumes:
+      - ./internal/db-service/migrations:/migrations
+    depends_on:
+      - postgres
+    command: > 
+      -path /migrations -database postgres://postgres:post4302@postgres:5432/taskss?sslmode=disable up
+    networks:
+      - appnet
+
+
     
   zookeeper:
-    image: wurstmeister/zookeeper:3.4.6
+    image: zookeeper
     container_name: zookeeper
     ports:
       - "2181:2181"
@@ -74,7 +79,7 @@ services:
       - appnet
 
   kafka:
-    image: wurstmeister/kafka:2.13-3.5.1
+    image: apache/kafka:latest
     container_name: kafka
     ports:
       - "9092:9092"
@@ -82,16 +87,12 @@ services:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CREATE_TOPICS: "my-topic:1:1"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     depends_on:
       - zookeeper
     networks:
       - appnet
-
-  
-  
-
- 
 
 
 volumes:

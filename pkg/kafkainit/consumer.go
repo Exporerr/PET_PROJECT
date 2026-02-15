@@ -22,14 +22,14 @@ type Consumer struct {
 }
 
 const (
-	Broker = "localhost:9092"
+	Broker = "kafka:9092"
 	Topic  = "my-topic"
 )
 
 func New_Consumer(log *kafkalogger.ZapAdapter, ctx context.Context) (*Consumer, error, func() error) {
-	eventsBase:=os.Getenv("CONS_EVENTS")
-	if eventsBase=="" {
-		eventsBase="USER-EVENTS"
+	eventsBase := os.Getenv("CONS_EVENTS")
+	if eventsBase == "" {
+		eventsBase = "USER-EVENTS"
 	}
 	if err := os.MkdirAll(eventsBase, 0755); err != nil {
 		return nil, fmt.Errorf("mkdir log_event folder %v", err), nil
