@@ -23,6 +23,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /app/api ./cmd/api
 # ---------- финальный образ ----------
 FROM alpine:3.21.3
 WORKDIR /app
-COPY --from=builder /app/api-service .
+COPY --from=builder /app/api .
 EXPOSE 8080
 CMD ["./api"]
