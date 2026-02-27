@@ -59,7 +59,7 @@ func New_Producer(log *kafkalogger.ZapAdapter, max_size int, tim time.Duration) 
 }
 
 func (p *Producer_real) WriteMessagee(userID int, action string, resourceID int, ctx context.Context) {
-	rd := ctx.Value(contextkeys.ReqInfo).(*models.Request_Info)
+	rd := ctx.Value(contextkeys.ReqInfo).(models.Request_Info)
 	userAction := models.User_Action{
 		User_id:   userID,
 		Action:    action,

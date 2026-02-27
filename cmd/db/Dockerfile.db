@@ -23,5 +23,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /app/db ./cmd/db
 FROM alpine:3.21.3
 WORKDIR /app
 COPY --from=builder /app/db .
+COPY --from=builder /app/internal/db-service/configs/.env ./internal/db-service/configs/.env
 EXPOSE 8081
 CMD ["./db"]

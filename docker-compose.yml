@@ -17,7 +17,7 @@ services:
       - kafka
     environment:
       KAFKA_BROKER: kafka:9092
-      API_ENV: /app/api/internal/api-service/Configs/.env
+      API_ENV: ./internal/api-service/Configs/.env
       DB_SERVICE_URL: http://db-service:8081
     networks:
       - appnet
@@ -35,7 +35,7 @@ services:
       - postgres
       - migrate
     environment:
-      DB_ENV: /app/db/internal/db-service/configs/.env
+      DB_ENV: ./internal/db-service/configs/.env
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -79,7 +79,7 @@ services:
       - appnet
 
   kafka:
-    image: apache/kafka:latest
+    image: wurstmeister/kafka:2.13-2.8.1
     container_name: kafka
     ports:
       - "9092:9092"
