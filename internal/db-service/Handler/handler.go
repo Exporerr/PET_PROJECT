@@ -28,11 +28,13 @@ func (h *Handler) POST_USER(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var user models.Request_Register
 	ctx := r.Context()
-	if r.Header.Get("Content-Type") != "application/json" {
+	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 		h.log.ERROR("Hnadler(db-service)", "Register-User", "Контент!=JSON", nil)
 		http.Error(w, "Content-Type должен быть application/json", http.StatusUnsupportedMediaType)
 		return
+
 	}
+
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
 		h.log.ERROR("Handler(db-service)", "Register-User", fmt.Sprintf("Ошибка декодирования JSON: %v ", err), nil)

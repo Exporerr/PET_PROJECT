@@ -19,13 +19,13 @@ import (
 )
 
 type Handler struct {
-	log      kafkalogger.ZapAdapter
+	log      kafkalogger.LoggerInterface
 	s        serviceapi.Service
 	producer *kafkainit.Producer_real
 }
 
-func New_Handler_api(log kafkalogger.ZapAdapter, s serviceapi.Service, producer *kafkainit.Producer_real) *Handler {
-	return &Handler{log: log, s: s}
+func New_Handler_api(log kafkalogger.LoggerInterface, s serviceapi.Service, producer *kafkainit.Producer_real) *Handler {
+	return &Handler{log: log, s: s, producer: producer}
 }
 
 func (h *Handler) Create_New_user(w http.ResponseWriter, r *http.Request) {

@@ -49,7 +49,7 @@ func (s *Service) Login(ctx context.Context, email string) (*models.User, error)
 		return nil, err
 
 	}
-	s.log.ERROR("Service(db-service)", "Login", "Сервис успешно отработал", nil)
+	s.log.INFO("Service(db-service)", "Login", "Сервис успешно отработал", nil)
 	return User, nil
 
 }
@@ -76,7 +76,7 @@ func (s *Service) GetAllTasks(ctx context.Context, user_id int) ([]models.Task, 
 func (s *Service) Create_Task(ctx context.Context, task *models.Request_Task, user_id int) (*models.Task, error) {
 
 	taskModel, err := s.repo.Create_Task(ctx, task, user_id)
-	if err == nil {
+	if err != nil {
 		s.log.ERROR("Service(db-service)", "Create_Task", fmt.Sprintf("Не удалось создать задачу по ошибке: %v", err), &user_id)
 		return nil, err
 

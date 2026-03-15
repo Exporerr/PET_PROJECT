@@ -2,6 +2,7 @@ package kafkainit
 
 import (
 	"context"
+
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	kafkalogger "github.com/Explorerr/pet_project/pkg/Kafka_logger"
+	models "github.com/Explorerr/pet_project/pkg/Models"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -78,10 +80,20 @@ func (c *Consumer) Run(ctx context.Context) {
 }
 
 func (c *Consumer) process(msg kafka.Message) {
-	json_msg, _ := json.Marshal(msg)
-	_, err := c.File.Write(append(json_msg, '\n'))
+
+	var user_action models.User_Action
+	if erro := json.Unmarshal(msg.Value, &user_action); erro != nil {
+		c.Log.ERROR("process", "unmarshaling error", erro.Error(), nil)
+	}
+
+	out, erro := json.Marshal(user_action)
+	if erro != nil {
+		c.Log.ERROR("process", "marshaling error", erro.Error(), nil)
+	}
+
+	_, err := c.File.Write(append(out, '\n'))
 	if err != nil {
-		c.Log.ERROR("process", "weiting to file failed", err.Error(), nil)
+		c.Log.ERROR("process", "writing to file failed", err.Error(), nil)
 		return
 	}
 

@@ -67,12 +67,12 @@ func main() {
 	// Создание Клиента для запросов к db-service(у)
 	cli := client.NewClient(baseURL, log)
 	// Создание Сервиса
-	s := serviceapi.NewService_api(*cli, *log)
+	s := serviceapi.NewService_api(*cli, log)
 	// Создание Хедлера
-	h := handlerapi.New_Handler_api(*log, *s, producer)
+	h := handlerapi.New_Handler_api(log, *s, producer)
 	r := mux.NewRouter()
 	r.HandleFunc("/tasks/register", h.Create_New_user).Methods("POST")
-	r.HandleFunc("/tasks/login", h.Login).Methods("POST")
+	r.Handle("/tasks/login", middleware.Info_Middleware(http.HandlerFunc(h.Login), log)).Methods("POST")
 	r.Handle("/tasks/create", middleware.Info_Middleware(middleware.JWT_Middleware(http.HandlerFunc(h.Create_Task), log), log)).Methods("POST")
 	r.Handle("/tasks/up/{task-id}", middleware.Info_Middleware(middleware.JWT_Middleware(http.HandlerFunc(h.Update), log), log)).Methods("PATCH")
 	r.Handle("/tasks/del/{task-id}", middleware.Info_Middleware(middleware.JWT_Middleware(http.HandlerFunc(h.Delete_Task), log), log)).Methods("DELETE")

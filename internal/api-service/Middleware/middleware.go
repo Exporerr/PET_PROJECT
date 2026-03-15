@@ -41,6 +41,9 @@ func Info_Middleware(next http.Handler, log kafkalogger.LoggerInterface) http.Ha
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ip_address := r.Header.Get("X-Forwarded-For")
+		if ip_address == "" {
+			ip_address = r.RemoteAddr
+		}
 		userAgent := r.Header.Get("User-Agent")
 
 		req_info := models.Request_Info{Ip_add: ip_address, Source: userAgent, Method: r.Method, Path: r.URL.Path}
