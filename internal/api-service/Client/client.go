@@ -30,8 +30,16 @@ func NewClient(baseURL string, log kafkalogger.LoggerInterface) *Client {
 func (cli *Client) Register(user models.Request_Register, ctx context.Context) error {
 	url := fmt.Sprintf("%s/tasks/register", cli.baseURL)
 	cli.log.DEBUG("Client(api-service)", "Register", fmt.Sprintf("Отправка запроса регистрации на: %s", url), nil)
-	body, _ := json.Marshal(user)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader([]byte(body)))
+	body, err := json.Marshal(user)
+	if err != nil {
+		cli.log.ERROR("Client(api-service)", "Register", fmt.Sprintf("Ошибка маршалинга: %v", err), nil)
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader([]byte(body)))
+	if err != nil {
+		cli.log.ERROR("Client(api-service)", "Register", fmt.Sprintf("Ошибка создания HTTP запроса: %v", err), nil)
+		return err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := cli.httpClient.Do(req)
 	if err != nil {
@@ -54,10 +62,21 @@ func (cli *Client) Register(user models.Request_Register, ctx context.Context) e
 func (cli *Client) Login(login models.Request_Login, ctx context.Context) (*models.User, error) {
 	url := fmt.Sprintf("%s/tasks/login", cli.baseURL)
 	cli.log.DEBUG("Client(api-service)", "Login", fmt.Sprintf("Отправка запроса логина на: %s", url), nil)
-	body, _ := json.Marshal(login)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader([]byte(body)))
+	body, err := json.Marshal(login)
+	if err != nil {
+		cli.log.ERROR("Client(api-service)", "Login", fmt.Sprintf("Ошибка маршалинга: %v", err), nil)
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader([]byte(body)))
+	if err != nil {
+		cli.log.ERROR("Client(api-service)", "Login", fmt.Sprintf("Ошибка создания HTTP запроса: %v", err), nil)
+		return nil, err
+
+	}
+
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := cli.httpClient.Do(req)
+
 	if err != nil {
 		cli.log.ERROR("Client(api-service)", "Login", fmt.Sprintf("Ошибка HTTP запроса: %v", err), nil)
 		return nil, err
@@ -73,8 +92,10 @@ func (cli *Client) Login(login models.Request_Login, ctx context.Context) (*mode
 		cli.log.ERROR("Client(api-service)", "Login", fmt.Sprintf("Неожиданный HTTP статус код: %d", resp.StatusCode), nil)
 		return nil, errors.New("internal errors")
 	}
+
 	var user models.User
 	erro := json.NewDecoder(resp.Body).Decode(&user)
+
 	if erro != nil {
 		cli.log.ERROR("Client(api-service)", "Login", fmt.Sprintf("Ошибка декодирования ответа: %v, HTTP статус код: %d", erro, resp.StatusCode), nil)
 		return nil, erro
@@ -88,8 +109,17 @@ func (cli *Client) Login(login models.Request_Login, ctx context.Context) (*mode
 func (cli *Client) Create_Task(id int, task models.Request_Task, ctx context.Context) (*models.Task, error) {
 	url := fmt.Sprintf("%s/tasks?user_id=%d", cli.baseURL, id)
 	cli.log.DEBUG("Client(api-service)", "Create_Task", fmt.Sprintf("Отправка запроса создания задачи на: %s для пользователя: %d", url, id), &id)
-	body, _ := json.Marshal(task)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader([]byte(body)))
+	body, err := json.Marshal(task)
+	if err != nil {
+		cli.log.ERROR("Client(api-service)", "Create_Task", fmt.Sprintf("Ошибка маршалинга: %v", err), &id)
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader([]byte(body)))
+	if err != nil {
+		cli.log.ERROR("Client(api-service)", "Create_Task", fmt.Sprintf("Ошибка создания HTTP запроса: %v", err), nil)
+		return nil, err
+
+	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := cli.httpClient.Do(req)
 	if err != nil {
@@ -115,7 +145,11 @@ func (cli *Client) Create_Task(id int, task models.Request_Task, ctx context.Con
 func (cli *Client) GetAllTasks(id int, ctx context.Context) ([]models.Task, error) {
 	url := fmt.Sprintf("%s/tasks/%d", cli.baseURL, id)
 	cli.log.DEBUG("Client(api-service)", "GetAllTasks", fmt.Sprintf("Отправка запроса получения задач на: %s для пользователя: %d", url, id), &id)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		cli.log.ERROR("Cleint(api-servicr)", "GetAllTasks", fmt.Sprintf("Ошибка создания HTTP запроса: %v", err), &id)
+		return nil, err
+	}
 	resp, err := cli.httpClient.Do(req)
 	if err != nil {
 		cli.log.ERROR("Client(api-service)", "GetAllTasks", fmt.Sprintf("Ошибка HTTP запроса: %v", err), &id)

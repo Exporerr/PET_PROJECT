@@ -22,10 +22,10 @@ import (
 
 type Service struct {
 	cli client.Client
-	log kafkalogger.ZapAdapter
+	log kafkalogger.LoggerInterface
 }
 
-func NewService_api(cli client.Client, log kafkalogger.ZapAdapter) *Service {
+func NewService_api(cli client.Client, log kafkalogger.LoggerInterface) *Service {
 	return &Service{cli: cli, log: log}
 }
 

@@ -59,7 +59,13 @@ func New_Producer(log *kafkalogger.ZapAdapter, max_size int, tim time.Duration) 
 }
 
 func (p *Producer_real) WriteMessagee(userID int, action string, resourceID int, ctx context.Context) {
-	rd := ctx.Value(contextkeys.ReqInfo).(*models.Request_Info)
+	rd, ok := ctx.Value(contextkeys.ReqInfo).(models.Request_Info)
+	if !ok {
+
+		p.Log.ERROR("Kafka Producer", "ReqInfo missing", "no request info in context", nil)
+		return
+
+	}
 	userAction := models.User_Action{
 		User_id:   userID,
 		Action:    action,
@@ -70,7 +76,7 @@ func (p *Producer_real) WriteMessagee(userID int, action string, resourceID int,
 		UserAgent: rd.Source,
 		Timestamp: time.Now(),
 	}
-	data, err := json.Marshal(userAction)
+	data, err := json.Marshal(&userAction)
 	if err != nil {
 		p.Log.ERROR("Kafka Producer", "JSON Marshaling", "failed to marshal msg", &userID)
 		return

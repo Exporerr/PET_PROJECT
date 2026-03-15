@@ -1,0 +1,28 @@
+# ---------- STAGE 1: builder ----------
+FROM golang:1.24.13-bookworm AS builder
+
+WORKDIR /app
+
+# копируем модульные файлы
+COPY go.mod go.sum ./
+RUN go mod download
+
+
+COPY internal/db-service ./internal/db-service
+COPY cmd/db ./cmd/db
+COPY pkg/app_errors ./pkg/app_errors
+COPY pkg/context_Key ./pkg/context_Key
+COPY pkg/Kafka_logger ./pkg/Kafka_logger
+COPY pkg/Models ./pkg/Models
+
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/db ./cmd/db
+
+
+# ---------- финальный образ ----------
+FROM alpine:3.21.3
+WORKDIR /app
+COPY --from=builder /app/db .
+COPY --from=builder /app/internal/db-service/configs/.env ./internal/db-service/configs/.env
+EXPOSE 8081
+CMD ["./db"]
